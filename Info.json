@@ -1,0 +1,12 @@
+{
+  "Id": "ADOFAI.EditorTweaks",
+  "DisplayName": "ADOFAI Editor Tweaks",
+  "Author": "LK130",
+  "Version": "0.1.0",
+  "ManagerVersion": "0.27.0",
+  "Requirements": [],
+  "AssemblyName": "ADOFAI.EditorTweaks.dll",
+  "EntryMethod": "ADOFAI.EditorTweaks.Main.Load",
+  "HomePage": "",
+  "Repository": ""
+}

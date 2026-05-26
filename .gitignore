@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+out/
+
+# IDE and editor state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs and crash dumps
+*.log
+*.dmp
+
+# Local packages and temporary files
+packages/
+*.nupkg
+*.tmp
+*.bak
+
+# OS files
+Thumbs.db
+Desktop.ini
