@@ -7,6 +7,8 @@ namespace ADOFAI.EditorTweaks
     {
         public bool EnableNumericDrag = true;
 
+        public bool EnableCameraRelativeDecorationDragFix = true;
+
         public float FloatStepPerPixel = 0.1f;
 
         public float IntStepPerPixel = 1f;
@@ -17,6 +19,7 @@ namespace ADOFAI.EditorTweaks
         {
             GUILayout.Label("ADOFAI.EditorTweaks");
             EnableNumericDrag = GUILayout.Toggle(EnableNumericDrag, "Enable numeric drag fields");
+            EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, "Fix camera-relative decoration dragging");
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Float step per pixel", GUILayout.Width(170));
