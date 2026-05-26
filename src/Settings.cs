@@ -9,6 +9,8 @@ namespace ADOFAI.EditorTweaks
 
         public bool EnableCameraRelativeDecorationDragFix = true;
 
+        public bool EnableDecorationPivotFix = true;
+
         public bool PersistEditorPreferences = true;
 
         public float FloatStepPerPixel = 0.1f;
@@ -22,6 +24,7 @@ namespace ADOFAI.EditorTweaks
             GUILayout.Label(Text("title"));
             EnableNumericDrag = GUILayout.Toggle(EnableNumericDrag, Text("enableNumericDrag"));
             EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
+            EnableDecorationPivotFix = GUILayout.Toggle(EnableDecorationPivotFix, Text("fixDecorationPivot"));
             PersistEditorPreferences = GUILayout.Toggle(PersistEditorPreferences, Text("persistEditorPreferences"));
 
             GUILayout.BeginHorizontal();
@@ -65,6 +68,8 @@ namespace ADOFAI.EditorTweaks
                         return "启用数值输入框拖动调节";
                     case "fixCameraRelativeDecorationDrag":
                         return "修复镜头相对装饰拖动";
+                    case "fixDecorationPivot":
+                        return "修复镜头/视差装饰轴心显示";
                     case "persistEditorPreferences":
                         return "持久化官方编辑器偏好设置";
                     case "floatStepPerPixel":
@@ -84,6 +89,8 @@ namespace ADOFAI.EditorTweaks
                     return "Enable numeric drag fields";
                 case "fixCameraRelativeDecorationDrag":
                     return "Fix camera-relative decoration dragging";
+                case "fixDecorationPivot":
+                    return "Fix camera/parallax decoration pivot";
                 case "persistEditorPreferences":
                     return "Persist official editor preferences";
                 case "floatStepPerPixel":
