@@ -1,4 +1,5 @@
 using System.Reflection;
+using ADOFAI.EditorTweaks.Features.EditorOverlay;
 using HarmonyLib;
 using UnityModManagerNet;
 
@@ -33,11 +34,13 @@ namespace ADOFAI.EditorTweaks
             {
                 modEntry.Logger.Log("ADOFAI.EditorTweaks enabled.");
                 Harmony?.PatchAll(Assembly.GetExecutingAssembly());
+                EditorTweaksOverlayWindow.Ensure();
             }
             else
             {
                 modEntry.Logger.Log("ADOFAI.EditorTweaks disabled.");
                 Harmony?.UnpatchAll(modEntry.Info.Id);
+                EditorTweaksOverlayWindow.Destroy();
             }
 
             return true;

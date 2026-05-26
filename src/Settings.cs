@@ -13,6 +13,14 @@ namespace ADOFAI.EditorTweaks
 
         public bool PersistEditorPreferences = true;
 
+        public bool ShowEditorOverlay = true;
+
+        public bool EditorOverlayCollapsed = false;
+
+        public float EditorOverlayX = -1f;
+
+        public float EditorOverlayY = -1f;
+
         public float DecorationMoveSnapStep = 0.5f;
 
         public float FloatStepPerPixel = 0.1f;
@@ -28,6 +36,7 @@ namespace ADOFAI.EditorTweaks
             EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
             EnableDecorationPivotFix = GUILayout.Toggle(EnableDecorationPivotFix, Text("fixDecorationPivot"));
             PersistEditorPreferences = GUILayout.Toggle(PersistEditorPreferences, Text("persistEditorPreferences"));
+            ShowEditorOverlay = GUILayout.Toggle(ShowEditorOverlay, Text("showEditorOverlay"));
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(Text("decorationMoveSnapStep"), GUILayout.Width(170));
@@ -63,7 +72,7 @@ namespace ADOFAI.EditorTweaks
             GUILayout.EndHorizontal();
         }
 
-        private static string Text(string key)
+        public static string Text(string key)
         {
             bool chinese = RDString.language == SystemLanguage.Chinese
                 || RDString.language == SystemLanguage.ChineseSimplified
@@ -75,6 +84,14 @@ namespace ADOFAI.EditorTweaks
                 {
                     case "title":
                         return "ADOFAI 编辑器优化";
+                    case "overlayTitle":
+                        return "Editor Tweaks";
+                    case "decorationSection":
+                        return "装饰";
+                    case "numericSection":
+                        return "数值拖动";
+                    case "fixesSection":
+                        return "修复";
                     case "enableNumericDrag":
                         return "启用数值输入框拖动调节";
                     case "fixCameraRelativeDecorationDrag":
@@ -83,6 +100,8 @@ namespace ADOFAI.EditorTweaks
                         return "修复镜头/视差装饰轴心显示";
                     case "persistEditorPreferences":
                         return "持久化官方编辑器偏好设置";
+                    case "showEditorOverlay":
+                        return "在编辑器内显示快捷设置浮窗";
                     case "decorationMoveSnapStep":
                         return "装饰移动吸附精度";
                     case "zeroDisables":
@@ -100,6 +119,14 @@ namespace ADOFAI.EditorTweaks
             {
                 case "title":
                     return "ADOFAI Editor Tweaks";
+                case "overlayTitle":
+                    return "Editor Tweaks";
+                case "decorationSection":
+                    return "Decoration";
+                case "numericSection":
+                    return "Numeric drag";
+                case "fixesSection":
+                    return "Fixes";
                 case "enableNumericDrag":
                     return "Enable numeric drag fields";
                 case "fixCameraRelativeDecorationDrag":
@@ -108,6 +135,8 @@ namespace ADOFAI.EditorTweaks
                     return "Fix camera/parallax decoration pivot";
                 case "persistEditorPreferences":
                     return "Persist official editor preferences";
+                case "showEditorOverlay":
+                    return "Show editor quick settings overlay";
                 case "decorationMoveSnapStep":
                     return "Decoration move snap step";
                 case "zeroDisables":
