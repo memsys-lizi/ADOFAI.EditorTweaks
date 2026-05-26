@@ -13,6 +13,8 @@ namespace ADOFAI.EditorTweaks
 
         public bool PersistEditorPreferences = true;
 
+        public float DecorationMoveSnapStep = 0.5f;
+
         public float FloatStepPerPixel = 0.1f;
 
         public float IntStepPerPixel = 1f;
@@ -26,6 +28,15 @@ namespace ADOFAI.EditorTweaks
             EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
             EnableDecorationPivotFix = GUILayout.Toggle(EnableDecorationPivotFix, Text("fixDecorationPivot"));
             PersistEditorPreferences = GUILayout.Toggle(PersistEditorPreferences, Text("persistEditorPreferences"));
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Text("decorationMoveSnapStep"), GUILayout.Width(170));
+            if (float.TryParse(GUILayout.TextField(DecorationMoveSnapStep.ToString("0.###"), GUILayout.Width(100)), out float snapStep))
+            {
+                DecorationMoveSnapStep = Mathf.Max(0f, snapStep);
+            }
+            GUILayout.Label(Text("zeroDisables"));
+            GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(Text("floatStepPerPixel"), GUILayout.Width(170));
@@ -72,6 +83,10 @@ namespace ADOFAI.EditorTweaks
                         return "修复镜头/视差装饰轴心显示";
                     case "persistEditorPreferences":
                         return "持久化官方编辑器偏好设置";
+                    case "decorationMoveSnapStep":
+                        return "装饰移动吸附精度";
+                    case "zeroDisables":
+                        return "0 = 关闭";
                     case "floatStepPerPixel":
                         return "小数每像素步进";
                     case "intStepPerPixel":
@@ -93,6 +108,10 @@ namespace ADOFAI.EditorTweaks
                     return "Fix camera/parallax decoration pivot";
                 case "persistEditorPreferences":
                     return "Persist official editor preferences";
+                case "decorationMoveSnapStep":
+                    return "Decoration move snap step";
+                case "zeroDisables":
+                    return "0 = off";
                 case "floatStepPerPixel":
                     return "Float step per pixel";
                 case "intStepPerPixel":

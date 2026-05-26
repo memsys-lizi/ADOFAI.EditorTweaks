@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <OutputPath>bin\$(Configuration)\</OutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);src_unity\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -31,6 +32,10 @@
 
   <!-- 导入构建目标 / Import build targets -->
   <Import Project="ADOFAIMod.targets" />
+
+  <ItemGroup>
+    <Compile Remove="src_unity\**\*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="0Harmony">
