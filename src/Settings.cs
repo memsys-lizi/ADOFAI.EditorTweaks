@@ -13,13 +13,10 @@ namespace ADOFAI.EditorTweaks
 
         public int MaxFloatingPoints = 3;
 
-        public bool LiveApplyWhileDragging = false;
-
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
             GUILayout.Label("ADOFAI.EditorTweaks");
             EnableNumericDrag = GUILayout.Toggle(EnableNumericDrag, "Enable numeric drag fields");
-            LiveApplyWhileDragging = GUILayout.Toggle(LiveApplyWhileDragging, "Apply while dragging (experimental)");
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Float step per pixel", GUILayout.Width(170));
