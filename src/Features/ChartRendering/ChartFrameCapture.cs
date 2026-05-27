@@ -1,5 +1,7 @@
 using System;
+using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace ADOFAI.EditorTweaks.Features.ChartRendering
 {
@@ -7,28 +9,26 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
     {
         private readonly int width;
         private readonly int height;
-        private readonly RenderTexture target;
-        private readonly Texture2D readback;
-        private readonly byte[] frameBytes;
+        private readonly RenderTexture scaleTarget;
         private readonly int rowBytes;
+        private static readonly AccessTools.FieldRef<scrCamera, RenderTexture> CamRt =
+            AccessTools.FieldRefAccess<scrCamera, RenderTexture>("camRT");
 
         public ChartFrameCapture(int width, int height)
         {
             this.width = width;
             this.height = height;
-            rowBytes = width * 4;
-            frameBytes = new byte[rowBytes * height];
-            target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32)
+            rowBytes = width * 3;
+            scaleTarget = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32)
             {
                 antiAliasing = 1,
                 useMipMap = false,
                 autoGenerateMips = false
             };
-            target.Create();
-            readback = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            scaleTarget.Create();
         }
 
-        public byte[] CaptureFrame()
+        public PendingFrame RequestFrame(int index)
         {
             scrCamera camera = scrCamera.instance;
             if (camera == null)
@@ -36,59 +36,62 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 throw new InvalidOperationException("scrCamera.instance is not available.");
             }
 
-            RenderTexture previousActive = RenderTexture.active;
-            RenderTexture previousStatic = camera.Bgcamstatic.targetTexture;
-            RenderTexture previousBg = camera.BGcam.targetTexture;
-            RenderTexture previousMain = camera.camobj.targetTexture;
-
-            try
+            RenderTexture source = CamRt(camera);
+            if (source == null)
             {
-                camera.Bgcamstatic.targetTexture = target;
-                camera.BGcam.targetTexture = target;
-                camera.camobj.targetTexture = target;
-
-                camera.Bgcamstatic.Render();
-                camera.BGcam.Render();
-                camera.camobj.Render();
-
-                RenderTexture.active = target;
-                readback.ReadPixels(new Rect(0f, 0f, width, height), 0, 0, false);
-                readback.Apply(false, false);
-
-                byte[] raw = readback.GetRawTextureData();
-                FlipVertically(raw, frameBytes);
-                return frameBytes;
+                throw new InvalidOperationException("scrCamera.camRT is not available.");
             }
-            finally
+
+            if (source.width == width && source.height == height)
             {
-                camera.Bgcamstatic.targetTexture = previousStatic;
-                camera.BGcam.targetTexture = previousBg;
-                camera.camobj.targetTexture = previousMain;
-                RenderTexture.active = previousActive;
+                return new PendingFrame(index, AsyncGPUReadback.Request(source, 0, TextureFormat.RGB24), rowBytes, height);
             }
+
+            Graphics.Blit(source, scaleTarget);
+            return new PendingFrame(index, AsyncGPUReadback.Request(scaleTarget, 0, TextureFormat.RGB24), rowBytes, height);
         }
 
         public void Dispose()
         {
-            if (target != null)
+            if (scaleTarget != null)
             {
-                target.Release();
-                UnityEngine.Object.Destroy(target);
-            }
-
-            if (readback != null)
-            {
-                UnityEngine.Object.Destroy(readback);
+                scaleTarget.Release();
+                UnityEngine.Object.Destroy(scaleTarget);
             }
         }
 
-        private void FlipVertically(byte[] source, byte[] destination)
+        public sealed class PendingFrame
         {
-            for (int y = 0; y < height; y++)
+            private readonly int byteLength;
+            private readonly AsyncGPUReadbackRequest request;
+
+            public PendingFrame(int index, AsyncGPUReadbackRequest request, int rowBytes, int height)
             {
-                int sourceOffset = y * rowBytes;
-                int destinationOffset = (height - 1 - y) * rowBytes;
-                Buffer.BlockCopy(source, sourceOffset, destination, destinationOffset, rowBytes);
+                Index = index;
+                this.request = request;
+                byteLength = rowBytes * height;
+            }
+
+            public int Index { get; }
+
+            public int ByteLength => byteLength;
+
+            public bool Done => request.done;
+
+            public void Complete(byte[] destination)
+            {
+                if (request.hasError)
+                {
+                    throw new InvalidOperationException("AsyncGPUReadback failed for frame " + Index + ".");
+                }
+
+                Unity.Collections.NativeArray<byte> source = request.GetData<byte>();
+                if (destination.Length < source.Length)
+                {
+                    throw new InvalidOperationException("Frame buffer is too small.");
+                }
+
+                source.CopyTo(destination);
             }
         }
     }
