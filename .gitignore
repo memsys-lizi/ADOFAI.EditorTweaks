@@ -40,3 +40,6 @@ src_unity/*.sln
 # OS files
 Thumbs.db
 Desktop.ini
+
+
+tools\ffmpeg.exe

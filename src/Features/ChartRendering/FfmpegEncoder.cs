@@ -145,6 +145,31 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
         }
 
+        public void MuxAudioFile(string audioPath)
+        {
+            string args = "-y -i " + Quote(tempVideoPath) + " "
+                + "-i " + Quote(audioPath) + " "
+                + "-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 320k -ac 2 -movflags +faststart "
+                + Quote(finalVideoPath);
+            Process mux = StartProcess(args, redirectInput: false);
+            process = mux;
+            try
+            {
+                using (mux)
+                {
+                    mux.WaitForExit();
+                    if (mux.ExitCode != 0)
+                    {
+                        throw new InvalidOperationException("FFmpeg audio mux failed with exit code " + mux.ExitCode + ".");
+                    }
+                }
+            }
+            finally
+            {
+                process = null;
+            }
+        }
+
         private static string BuildAudioFilterScript(ChartRenderAudioMixPlan plan, IReadOnlyList<ChartRenderAudioClip> clips)
         {
             StringBuilder script = new StringBuilder();
@@ -370,12 +395,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 EncoderName = "h264_nvenc";
                 Main.Log("Chart renderer using h264_nvenc.");
-                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + Math.Max(0, Math.Min(51, crf));
+                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + Math.Max(0, Math.Min(51, crf)) + " -g " + Math.Max(1, fps * 2);
             }
 
             EncoderName = "libx264";
             Main.Log("Chart renderer using libx264.");
-            return "-c:v libx264 -preset " + Quote(GetRealtimePreset()) + " -crf " + crf;
+            return "-c:v libx264 -preset " + Quote(GetRealtimePreset()) + " -crf " + crf + " -g " + Math.Max(1, fps * 2);
         }
 
         private bool ForcesCpuEncoder()
