@@ -12,6 +12,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
     internal sealed class ChartRenderSession
     {
         private const int MaxPendingGpuFrames = 8;
+        private const double CompletionTailSeconds = 1.5;
+        private const double CompletionFallbackSeconds = 30.0;
 
         private readonly UnityModManager.ModEntry modEntry;
         private readonly Settings settings;
@@ -44,7 +46,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public static bool IsRendering { get; private set; }
 
-        public float Progress => totalFrames <= 0 ? 0f : (float)frameIndex / totalFrames;
+        public float Progress => totalFrames <= 0 ? 0f : Mathf.Clamp01((float)frameIndex / totalFrames);
 
         public string StageText { get; private set; } = Settings.Text("chartRendererRendering");
 
@@ -201,10 +203,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             int requestedFrames = 0;
+            int completionFrame = -1;
+            int fps = Math.Max(1, settings.ChartRenderFps);
+            int completionTailFrames = Math.Max(1, Mathf.CeilToInt((float)(CompletionTailSeconds * fps)));
+            int fallbackExtraFrames = Math.Max(completionTailFrames, Mathf.CeilToInt((float)(CompletionFallbackSeconds * fps)));
+            int renderFrameLimit = totalFrames + fallbackExtraFrames;
+            WriteLog("Render estimate: " + totalFrames + " frames, fallback limit: " + renderFrameLimit + " frames.");
             DetailText = Path.GetFileName(outputPath);
             yield return null;
 
-            while (requestedFrames < totalFrames && !cancelRequested && failure == null)
+            while (requestedFrames < renderFrameLimit && !cancelRequested && failure == null)
             {
                 if (!Try(() => WaitForPendingSlot(encoder!), out failure))
                 {
@@ -224,6 +232,17 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     pendingFrames.Enqueue(frameCapture!.RequestFrame(requestedFrames));
                     requestedFrames++;
                     DrainReadyFrames(encoder!);
+                    if (completionFrame < 0 && HasReachedLevelEnd())
+                    {
+                        completionFrame = requestedFrames;
+                        renderFrameLimit = completionFrame + completionTailFrames;
+                        totalFrames = renderFrameLimit;
+                        WriteLog("Level end detected at frame " + completionFrame + "; rendering tail to frame " + renderFrameLimit + ".");
+                    }
+                    else if (completionFrame < 0 && requestedFrames >= totalFrames)
+                    {
+                        totalFrames = Math.Min(renderFrameLimit, requestedFrames + fps * 2);
+                    }
                 }, out failure))
                 {
                     break;
@@ -509,6 +528,35 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 && ADOBase.conductor.song != null
                 && !ADOBase.conductor.song.isPlaying
                 && GetCurrentCaptureTime() > 0.5;
+        }
+
+        private bool HasReachedLevelEnd()
+        {
+            scrController controller = ADOBase.controller;
+            if (controller == null || ADOBase.conductor == null || !ADOBase.conductor.hasSongStarted)
+            {
+                return false;
+            }
+
+            if (controller.state == States.Won)
+            {
+                return true;
+            }
+
+            List<scrFloor>? floors = ADOBase.lm == null ? null : ADOBase.lm.listFloors;
+            if (floors == null || floors.Count <= 1)
+            {
+                return false;
+            }
+
+            int lastSeqId = floors.Count - 1;
+            if (controller.currentSeqID >= lastSeqId)
+            {
+                return true;
+            }
+
+            scrFloor currentFloor = controller.currFloor;
+            return currentFloor != null && currentFloor.seqID >= lastSeqId;
         }
 
         private bool IsPlaybackScheduled()
