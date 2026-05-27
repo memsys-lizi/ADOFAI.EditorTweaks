@@ -12,7 +12,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
     internal sealed class ChartRenderSession
     {
         private const int MaxPendingGpuFrames = 8;
-        private const double CompletionTailSeconds = 1.5;
         private const double CompletionFallbackSeconds = 30.0;
 
         private readonly UnityModManager.ModEntry modEntry;
@@ -205,7 +204,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             int requestedFrames = 0;
             int completionFrame = -1;
             int fps = Math.Max(1, settings.ChartRenderFps);
-            int completionTailFrames = Math.Max(1, Mathf.CeilToInt((float)(CompletionTailSeconds * fps)));
+            int completionTailFrames = Mathf.Max(0, Mathf.CeilToInt(Mathf.Max(0f, settings.ChartRenderCompletionTailSeconds) * fps));
             int fallbackExtraFrames = Math.Max(completionTailFrames, Mathf.CeilToInt((float)(CompletionFallbackSeconds * fps)));
             int renderFrameLimit = totalFrames + fallbackExtraFrames;
             WriteLog("Render estimate: " + totalFrames + " frames, fallback limit: " + renderFrameLimit + " frames.");

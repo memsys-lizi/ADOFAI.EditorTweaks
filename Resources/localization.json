@@ -131,6 +131,11 @@
       "zh": "视频规格：1920x1080 @ 60 帧"
     },
     {
+      "key": "chartRenderCompletionTailSeconds",
+      "en": "Stop after level end (seconds)",
+      "zh": "结束后延迟停止秒数"
+    },
+    {
       "key": "chartRenderShowHitJudgments",
       "en": "Show hit judgments while rendering",
       "zh": "渲染时显示判定文字"

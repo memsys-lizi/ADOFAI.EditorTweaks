@@ -53,6 +53,8 @@ namespace ADOFAI.EditorTweaks
 
         public string ChartRenderPreset = "veryfast";
 
+        public float ChartRenderCompletionTailSeconds = 5f;
+
         public bool ChartRenderShowHitJudgments = true;
 
         private static GUIStyle? panelStyle;
@@ -76,6 +78,8 @@ namespace ADOFAI.EditorTweaks
         private string intStepText = string.Empty;
 
         private string decimalsText = string.Empty;
+
+        private string renderTailSecondsText = string.Empty;
 
         private bool textFieldsInitialized;
 
@@ -110,6 +114,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderWorkspaceDirectory = DrawTextRow(Text("chartRenderWorkspaceDirectory"), ChartRenderWorkspaceDirectory);
             ChartRenderExportDirectory = DrawTextRow(Text("chartRenderExportDirectory"), ChartRenderExportDirectory);
             GUILayout.Label(Text("chartRenderFixedProfile"), hintStyle);
+            ChartRenderCompletionTailSeconds = DrawFloatRow(Text("chartRenderCompletionTailSeconds"), ChartRenderCompletionTailSeconds, ref renderTailSecondsText, 0f);
             ChartRenderShowHitJudgments = DrawToggleRow(ChartRenderShowHitJudgments, Text("chartRenderShowHitJudgments"));
 
             GUILayout.Space(2);
@@ -127,6 +132,7 @@ namespace ADOFAI.EditorTweaks
             floatStepText = FormatFloat(FloatStepPerPixel);
             intStepText = FormatFloat(IntStepPerPixel);
             decimalsText = MaxFloatingPoints.ToString(CultureInfo.InvariantCulture);
+            renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
             textFieldsInitialized = true;
         }
 
@@ -268,12 +274,14 @@ namespace ADOFAI.EditorTweaks
         public override void Save(UnityModManager.ModEntry modEntry)
         {
             ApplyFixedChartRenderProfile();
+            ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
             Save(this, modEntry);
         }
 
         public void EnsureDefaults(UnityModManager.ModEntry modEntry)
         {
             ApplyFixedChartRenderProfile();
+            ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
 
             string workspace = Path.Combine(modEntry.Path, "Workspace");
             if (string.IsNullOrWhiteSpace(ChartRenderWorkspaceDirectory))

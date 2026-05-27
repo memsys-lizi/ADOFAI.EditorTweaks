@@ -2,7 +2,7 @@
 
 Language: English | [中文](README.zh-CN.md)
 
-ADOFAI Editor Tweaks is a UnityModManager mod for **A Dance of Fire and Ice**. It focuses on small editor workflow improvements, fixes for custom-level editing edge cases, and a compact in-editor quick settings overlay.
+ADOFAI Editor Tweaks is a UnityModManager mod for **A Dance of Fire and Ice**. It focuses on editor workflow improvements, fixes for custom-level editing edge cases, a compact in-editor quick settings overlay, and an offline chart video renderer.
 
 The mod is built as a Harmony patch library targeting `net481`.
 
@@ -73,6 +73,41 @@ File:
 
 - `src/Features/VideoBackgroundSync/VideoBackgroundSyncPatches.cs`
 
+### Chart Video Renderer
+
+Exports the currently loaded editor chart to an MP4 video without recording the desktop or editor UI.
+
+The renderer starts playback through the game's normal editor play path so chart setup, decorations, camera movement, filters, video backgrounds, hitsounds, hold sounds, and `PlaySound` events are initialized by the game itself. Rendering is offline and deterministic: the output profile is fixed to `1920x1080 @ 60fps`, with CRF 18 and the `veryfast` encoder preset applied internally.
+
+Pipeline:
+
+- Captures the chart camera output to a dedicated `RenderTexture`.
+- Reads frames with `AsyncGPUReadback` to avoid the old blocking CPU readback path.
+- Streams raw RGBA frames directly into FFmpeg instead of writing PNG sequences.
+- Prefers hardware H.264 encoding when FFmpeg can use it, then falls back to software encoding.
+- Builds the final audio mix from the song plus captured gameplay sounds, including hitsounds, hold loops, and scheduled sound events.
+- Suppresses UI/menu sounds during rendering so UMM clicks and interface audio are not exported.
+- Stops after the level reaches the end, then records a configurable tail duration. The default tail is 5 seconds.
+
+Renderer controls:
+
+- Workspace directory for temporary files.
+- Export directory for final MP4 files.
+- End-of-level tail duration.
+- Whether hit judgment labels such as Perfect, early, and late are visible during export.
+
+The renderer requires FFmpeg at `Tools/ffmpeg.exe` inside the deployed mod folder. The build target downloads it automatically when `tools/ffmpeg.exe` is missing from the repository checkout, so the binary does not need to be committed.
+
+Files:
+
+- `src/Features/ChartRendering/ChartRenderSession.cs`
+- `src/Features/ChartRendering/ChartFrameCapture.cs`
+- `src/Features/ChartRendering/ChartRenderAudioMix.cs`
+- `src/Features/ChartRendering/ChartRenderAudioPatches.cs`
+- `src/Features/ChartRendering/ChartRenderJudgmentPatches.cs`
+- `src/Features/ChartRendering/FfmpegEncoder.cs`
+- `scripts/EnsureFfmpeg.ps1`
+
 ### Editor Preferences Persistence
 
 Persists official editor preferences immediately after a preference control changes. This avoids preference changes being lost when the game/editor does not save them at the expected time.
@@ -91,11 +126,15 @@ The overlay includes:
 - Float drag step per pixel
 - Int drag step per pixel
 - Maximum float decimals
+- Chart renderer status and render button
+- Hit judgment visibility toggle for video exports
 
 The overlay remembers:
 
 - Position
 - Collapsed/expanded state
+
+While rendering, the overlay shows a modal progress panel with written frames, output speed, duplicated-frame count, ETA, current stage, and a cancel button.
 
 File:
 
@@ -103,7 +142,9 @@ File:
 
 ### UMM Settings Panel
 
-The UnityModManager settings panel exposes all feature toggles and numeric settings. Text input fields keep intermediate edit states, so values can be cleared or partially typed without being reformatted every frame.
+The UnityModManager settings panel exposes feature toggles, numeric editor settings, and chart renderer directories. Text input fields keep intermediate edit states, so values can be cleared or partially typed without being reformatted every frame.
+
+Chart render width, height, FPS, CRF, and preset are intentionally fixed by the mod to the default `1920x1080 @ 60fps` profile. Users only configure where files are written and how the render behaves.
 
 File:
 
@@ -131,6 +172,10 @@ The loader chooses Chinese text when the game language is Chinese, Chinese Simpl
 ├── ADOFAI.EditorTweaks.slnx
 ├── ADOFAIMod.targets
 ├── Info.json
+├── scripts/
+│   └── EnsureFfmpeg.ps1
+├── tools/
+│   └── ffmpeg.exe        # downloaded locally, ignored by git
 ├── Resources/
 │   └── localization.json
 └── src/
@@ -138,6 +183,7 @@ The loader chooses Chinese text when the game language is Chinese, Chinese Simpl
     ├── Settings.cs
     ├── Localization.cs
     └── Features/
+        ├── ChartRendering/
         ├── DecorationSelection/
         ├── EditorOverlay/
         ├── EditorPreferences/
@@ -163,10 +209,14 @@ dotnet build
 
 `ADOFAIMod.targets` performs these steps after build:
 
+- Downloads FFmpeg from the Gyan.dev release archive when `tools/ffmpeg.exe` is missing.
 - Copies the DLL and `Info.json` to `out/`.
 - Copies `Resources/**` to `out/Resources/`.
+- Copies `tools/ffmpeg.exe` to `out/Tools/ffmpeg.exe`.
 - Deploys the mod to the game's `Mods/ADOFAI.EditorTweaks/` directory.
 - Does not launch the game unless `AutoLaunchGame` is set to `true`.
+
+`tools/ffmpeg.exe` is intentionally ignored by git because it is large. Keep the script and build target in source control, not the binary.
 
 ## Runtime Entry
 
@@ -184,6 +234,7 @@ ADOFAI.EditorTweaks.Main.Load
 - Prefer small patches that preserve the base game's behavior and only adjust the broken or missing part.
 - Store user-facing text in `Resources/localization.json`.
 - When adding a setting, update `Settings.cs`, `Resources/localization.json`, and any relevant overlay/UI code.
+- When touching chart rendering, check the render session, overlay, audio mix, FFmpeg command, and localization together. Those pieces are tightly connected.
 - The project enables nullable reference types, so new code should keep null handling explicit.
 
 ## Verification
@@ -201,3 +252,8 @@ Manual checks worth doing in-game:
 - Drag numeric fields in the event inspector.
 - Drag camera-relative decorations.
 - Start playback from the middle of a chart with a video background and confirm video/audio sync.
+- Load a custom chart, render a video, and confirm the MP4 is `1920x1080 @ 60fps`.
+- Confirm the exported video does not include the UMM panel, editor UI, render modal, or menu sounds.
+- Toggle hit judgments off and confirm Perfect/early/late labels are hidden only during export.
+- Confirm the render continues for the configured tail duration after the level ends.
+- Confirm song audio, hitsounds, hold sounds, and `PlaySound` events stay aligned with the video.
