@@ -126,6 +126,11 @@
       "zh": "FFmpeg 预设"
     },
     {
+      "key": "chartRenderFixedProfile",
+      "en": "Video profile: 1920x1080 @ 60 fps",
+      "zh": "视频规格：1920x1080 @ 60 帧"
+    },
+    {
       "key": "chartRenderShowHitJudgments",
       "en": "Show hit judgments while rendering",
       "zh": "渲染时显示判定文字"

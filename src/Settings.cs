@@ -7,6 +7,12 @@ namespace ADOFAI.EditorTweaks
 {
     public class Settings : UnityModManager.ModSettings
     {
+        private const int FixedChartRenderWidth = 1920;
+        private const int FixedChartRenderHeight = 1080;
+        private const int FixedChartRenderFps = 60;
+        private const int FixedChartRenderCrf = 18;
+        private const string FixedChartRenderPreset = "veryfast";
+
         public bool EnableNumericDrag = true;
 
         public bool EnableCameraRelativeDecorationDragFix = true;
@@ -71,14 +77,6 @@ namespace ADOFAI.EditorTweaks
 
         private string decimalsText = string.Empty;
 
-        private string renderWidthText = string.Empty;
-
-        private string renderHeightText = string.Empty;
-
-        private string renderFpsText = string.Empty;
-
-        private string renderCrfText = string.Empty;
-
         private bool textFieldsInitialized;
 
         public void OnGUI(UnityModManager.ModEntry modEntry)
@@ -111,11 +109,7 @@ namespace ADOFAI.EditorTweaks
             DrawSection(Text("renderSection"));
             ChartRenderWorkspaceDirectory = DrawTextRow(Text("chartRenderWorkspaceDirectory"), ChartRenderWorkspaceDirectory);
             ChartRenderExportDirectory = DrawTextRow(Text("chartRenderExportDirectory"), ChartRenderExportDirectory);
-            ChartRenderWidth = DrawIntRow(Text("chartRenderWidth"), ChartRenderWidth, ref renderWidthText, 320, 7680);
-            ChartRenderHeight = DrawIntRow(Text("chartRenderHeight"), ChartRenderHeight, ref renderHeightText, 240, 4320);
-            ChartRenderFps = DrawIntRow(Text("chartRenderFps"), ChartRenderFps, ref renderFpsText, 1, 240);
-            ChartRenderCrf = DrawIntRow(Text("chartRenderCrf"), ChartRenderCrf, ref renderCrfText, 0, 51);
-            ChartRenderPreset = DrawTextRow(Text("chartRenderPreset"), ChartRenderPreset);
+            GUILayout.Label(Text("chartRenderFixedProfile"), hintStyle);
             ChartRenderShowHitJudgments = DrawToggleRow(ChartRenderShowHitJudgments, Text("chartRenderShowHitJudgments"));
 
             GUILayout.Space(2);
@@ -133,10 +127,6 @@ namespace ADOFAI.EditorTweaks
             floatStepText = FormatFloat(FloatStepPerPixel);
             intStepText = FormatFloat(IntStepPerPixel);
             decimalsText = MaxFloatingPoints.ToString(CultureInfo.InvariantCulture);
-            renderWidthText = ChartRenderWidth.ToString(CultureInfo.InvariantCulture);
-            renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
-            renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
-            renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
             textFieldsInitialized = true;
         }
 
@@ -277,11 +267,14 @@ namespace ADOFAI.EditorTweaks
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
+            ApplyFixedChartRenderProfile();
             Save(this, modEntry);
         }
 
         public void EnsureDefaults(UnityModManager.ModEntry modEntry)
         {
+            ApplyFixedChartRenderProfile();
+
             string workspace = Path.Combine(modEntry.Path, "Workspace");
             if (string.IsNullOrWhiteSpace(ChartRenderWorkspaceDirectory))
             {
@@ -295,11 +288,15 @@ namespace ADOFAI.EditorTweaks
                     ? Path.Combine(workspace, "Exports")
                     : Path.Combine(videos, "ADOFAI Renders");
             }
+        }
 
-            if (string.IsNullOrWhiteSpace(ChartRenderPreset))
-            {
-                ChartRenderPreset = "veryfast";
-            }
+        private void ApplyFixedChartRenderProfile()
+        {
+            ChartRenderWidth = FixedChartRenderWidth;
+            ChartRenderHeight = FixedChartRenderHeight;
+            ChartRenderFps = FixedChartRenderFps;
+            ChartRenderCrf = FixedChartRenderCrf;
+            ChartRenderPreset = FixedChartRenderPreset;
         }
 
         public static Settings Load(UnityModManager.ModEntry modEntry)
