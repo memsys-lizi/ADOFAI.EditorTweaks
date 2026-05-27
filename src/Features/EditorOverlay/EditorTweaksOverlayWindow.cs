@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.IO;
+using ADOFAI.EditorTweaks.Features.ChartRendering;
 using UnityEngine;
 
 namespace ADOFAI.EditorTweaks.Features.EditorOverlay
@@ -25,6 +27,10 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private GUIStyle? sectionStyle;
         private GUIStyle? rowStyle;
         private Texture2D? pixel;
+        private Vector2 scrollPosition;
+        private ChartRenderSession? chartRenderSession;
+        private string chartRenderMessage = string.Empty;
+        private float drawWidth;
 
         private string snapStepText = string.Empty;
         private string floatStepText = string.Empty;
@@ -80,6 +86,11 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
             Rect oldRect = windowRect;
             GUI.depth = -900;
+            if (chartRenderSession != null && chartRenderSession.IsActive)
+            {
+                DrawRenderOverlay(chartRenderSession);
+            }
+
             windowRect = GUI.Window(WindowId, windowRect, DrawWindow, GUIContent.none, windowStyle);
             windowRect.width = GetWindowWidth();
             windowRect.height = Main.Settings.EditorOverlayCollapsed ? CollapsedHeight : ExpandedHeight;
@@ -99,12 +110,13 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return false;
             }
 
-            return ADOBase.isEditingLevel && ADOBase.editor != null;
+            return (ADOBase.isEditingLevel && ADOBase.editor != null) || ChartRenderSession.IsRendering;
         }
 
         private void DrawWindow(int id)
         {
             float width = windowRect.width;
+            drawWidth = width;
             DrawRect(new Rect(0f, 0f, width, 40f), new Color(0.09f, 0.11f, 0.13f, 0.72f));
             DrawRect(new Rect(0f, 39f, width, 1f), new Color(0.32f, 0.56f, 0.64f, 0.44f));
             DrawWindowBorder(width, windowRect.height);
@@ -125,7 +137,12 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return;
             }
 
-            float y = 54f;
+            Rect scrollRect = new Rect(0f, 48f, width, windowRect.height - 56f);
+            Rect viewRect = new Rect(0f, 0f, width - 16f, 398f);
+            scrollPosition = GUI.BeginScrollView(scrollRect, scrollPosition, viewRect, false, true);
+            drawWidth = viewRect.width;
+
+            float y = 6f;
             DrawSectionLabel(Settings.Text("decorationSection"), y, Settings.Text("zeroDisables"));
             y += 30f;
             DrawFloatRow(y, Settings.Text("decorationMoveSnapStep"), ref snapStepText, 0f, value => Main.Settings.DecorationMoveSnapStep = value);
@@ -139,12 +156,19 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             y += 36f;
             DrawIntRow(y, Settings.Text("maxFloatDecimals"), ref decimalsText, 0, 8, value => Main.Settings.MaxFloatingPoints = value);
 
+            y += 44f;
+            DrawSectionLabel(Settings.Text("renderSection"), y);
+            y += 30f;
+            DrawChartRenderPanel(y);
+
+            GUI.EndScrollView();
+            drawWidth = width;
             GUI.DragWindow(new Rect(0f, 0f, width - 42f, 40f));
         }
 
         private void DrawSectionLabel(string text, float y, string? hint = null)
         {
-            float width = windowRect.width;
+            float width = drawWidth > 0f ? drawWidth : windowRect.width;
             GUI.Label(new Rect(22f, y, width * 0.55f, 22f), text, sectionStyle);
             if (!string.IsNullOrEmpty(hint))
             {
@@ -192,7 +216,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
         private void DrawValueRow(float y, string label, string value, out Rect inputRect)
         {
-            float width = windowRect.width;
+            float width = drawWidth > 0f ? drawWidth : windowRect.width;
             Rect rowRect = new Rect(20f, y, width - 40f, 32f);
             GUI.Box(rowRect, GUIContent.none, rowStyle);
             DrawRect(new Rect(rowRect.x, rowRect.y, 3f, rowRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
@@ -200,6 +224,107 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             inputRect = new Rect(width - 112f, y + 5f, 86f, 22f);
             Rect labelRect = new Rect(34f, y + 6f, inputRect.x - 44f, 20f);
             GUI.Label(labelRect, label, labelStyle);
+        }
+
+        private void DrawChartRenderPanel(float y)
+        {
+            float width = drawWidth > 0f ? drawWidth : windowRect.width;
+            Rect panelRect = new Rect(20f, y, width - 40f, 102f);
+            GUI.Box(panelRect, GUIContent.none, rowStyle);
+            DrawRect(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
+
+            string disabledReason = GetChartRenderDisabledReason();
+            bool isRendering = chartRenderSession != null && chartRenderSession.IsActive;
+            bool canRender = string.IsNullOrEmpty(disabledReason) && !isRendering;
+            string status = canRender ? Settings.Text("chartRendererReady") : disabledReason;
+            if (!string.IsNullOrEmpty(chartRenderMessage) && !isRendering)
+            {
+                status = chartRenderMessage;
+            }
+
+            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 10f, panelRect.width - 28f, 38f), status, labelStyle);
+
+            GUI.enabled = canRender;
+            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 58f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
+            {
+                StartChartRender();
+            }
+
+            GUI.enabled = true;
+        }
+
+        private void StartChartRender()
+        {
+            if (Main.Mod == null)
+            {
+                return;
+            }
+
+            chartRenderMessage = string.Empty;
+            chartRenderSession = new ChartRenderSession(Main.Mod, Main.Settings);
+            StartCoroutine(chartRenderSession.Run(result =>
+            {
+                chartRenderMessage = result.Success
+                    ? Settings.Text("chartRendererDone") + ": " + result.OutputPath
+                    : Settings.Text("chartRendererFailed") + ": " + result.Message;
+            }));
+        }
+
+        private static string GetChartRenderDisabledReason()
+        {
+            scnEditor editor = ADOBase.editor;
+            scnGame? level = editor != null ? editor.customLevel : null;
+            if (editor == null
+                || editor.isLoading
+                || level == null
+                || level.levelData == null
+                || editor.floors == null
+                || editor.floors.Count <= 1)
+            {
+                return Settings.Text("chartRendererMissingLevel");
+            }
+
+            if (string.IsNullOrEmpty(level.levelData.songFilename))
+            {
+                return Settings.Text("chartRendererMissingSong");
+            }
+
+            string ffmpeg = ChartRenderPaths.GetFfmpegPath();
+            if (!File.Exists(ffmpeg))
+            {
+                return Settings.Text("chartRendererMissingFfmpeg");
+            }
+
+            return string.Empty;
+        }
+
+        private void DrawRenderOverlay(ChartRenderSession activeSession)
+        {
+            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.72f));
+
+            float width = Mathf.Min(560f, Screen.width - 48f);
+            float height = 190f;
+            Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
+            DrawRect(panel, new Color(0.05f, 0.06f, 0.07f, 0.96f));
+            DrawRect(new Rect(panel.x, panel.y, panel.width, 1f), new Color(0.65f, 0.82f, 0.86f, 0.82f));
+            DrawRect(new Rect(panel.x, panel.yMax - 1f, panel.width, 1f), new Color(0.65f, 0.82f, 0.86f, 0.82f));
+            DrawRect(new Rect(panel.x, panel.y, 1f, panel.height), new Color(0.65f, 0.82f, 0.86f, 0.82f));
+            DrawRect(new Rect(panel.xMax - 1f, panel.y, 1f, panel.height), new Color(0.65f, 0.82f, 0.86f, 0.82f));
+
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 18f, panel.width - 48f, 26f), activeSession.StageText, titleStyle);
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 54f, panel.width - 48f, 24f), activeSession.DetailText, labelStyle);
+
+            Rect bar = new Rect(panel.x + 24f, panel.y + 92f, panel.width - 48f, 18f);
+            DrawRect(bar, new Color(0.10f, 0.12f, 0.13f, 1f));
+            DrawRect(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(activeSession.Progress), bar.height), new Color(0.36f, 0.75f, 0.80f, 0.95f));
+            DrawRect(new Rect(bar.x, bar.y, bar.width, 1f), new Color(0.24f, 0.42f, 0.46f, 0.95f));
+            DrawRect(new Rect(bar.x, bar.yMax - 1f, bar.width, 1f), new Color(0.24f, 0.42f, 0.46f, 0.95f));
+
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 122f, panel.width - 48f, 24f), activeSession.TimingText, labelStyle);
+            if (GUI.Button(new Rect(panel.x + panel.width - 144f, panel.y + panel.height - 46f, 120f, 30f), Settings.Text("chartRendererCancel"), buttonStyle))
+            {
+                activeSession.Cancel();
+            }
         }
 
         private void SyncTextFields()

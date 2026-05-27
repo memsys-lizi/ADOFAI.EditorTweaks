@@ -23,13 +23,16 @@
         </PropertyGroup>
         <MakeDir Directories="$(OutDir)" />
         <MakeDir Directories="$(OutDir)Resources" />
+        <MakeDir Directories="$(OutDir)Tools" />
         <ItemGroup>
             <FilesToCopy Include="$(OutputPath)$(AssemblyName).dll" />
             <FilesToCopy Include="$(ProjectDir)Info.json" />
             <ResourceFiles Include="$(ProjectDir)Resources\**\*" Exclude="$(ProjectDir)Resources\**\*\" />
+            <ToolFiles Include="$(ProjectDir)Tools\**\*" Exclude="$(ProjectDir)Tools\**\*\" />
         </ItemGroup>
         <Copy SourceFiles="@(FilesToCopy)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(ResourceFiles)" DestinationFolder="$(OutDir)Resources\%(RecursiveDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(ToolFiles)" DestinationFolder="$(OutDir)Tools\%(RecursiveDir)" SkipUnchangedFiles="true" />
         <Message Text="Files copied to out folder: $(OutDir)" Importance="high" />
     </Target>
 
@@ -45,12 +48,15 @@
 
         <MakeDir Directories="$(ModsDir)" />
         <MakeDir Directories="$(ModsDir)Resources" />
+        <MakeDir Directories="$(ModsDir)Tools" />
         <ItemGroup>
             <ModFiles Include="$(ProjectDir)out\*.*" Exclude="$(ProjectDir)out\Resources\**\*" />
             <ModResourceFiles Include="$(ProjectDir)out\Resources\**\*" Exclude="$(ProjectDir)out\Resources\**\*\" />
+            <ModToolFiles Include="$(ProjectDir)out\Tools\**\*" Exclude="$(ProjectDir)out\Tools\**\*\" />
         </ItemGroup>
         <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModsDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(ModResourceFiles)" DestinationFolder="$(ModsDir)Resources\%(RecursiveDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(ModToolFiles)" DestinationFolder="$(ModsDir)Tools\%(RecursiveDir)" SkipUnchangedFiles="true" />
         <Message Text="Mod deployed to game directory: $(ModsDir)" Importance="high" />
 
         <!-- Windows 启动命令 / Windows launch command -->

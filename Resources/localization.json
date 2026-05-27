@@ -84,6 +84,101 @@
       "key": "maxFloatDecimals",
       "en": "Max float decimals",
       "zh": "小数最大位数"
+    },
+    {
+      "key": "renderSection",
+      "en": "Chart renderer",
+      "zh": "谱面渲染"
+    },
+    {
+      "key": "chartRenderWorkspaceDirectory",
+      "en": "Workspace directory",
+      "zh": "工作区目录"
+    },
+    {
+      "key": "chartRenderExportDirectory",
+      "en": "Export directory",
+      "zh": "导出目录"
+    },
+    {
+      "key": "chartRenderWidth",
+      "en": "Video width",
+      "zh": "视频宽度"
+    },
+    {
+      "key": "chartRenderHeight",
+      "en": "Video height",
+      "zh": "视频高度"
+    },
+    {
+      "key": "chartRenderFps",
+      "en": "Frame rate",
+      "zh": "帧率"
+    },
+    {
+      "key": "chartRenderCrf",
+      "en": "CRF quality",
+      "zh": "CRF 质量"
+    },
+    {
+      "key": "chartRenderPreset",
+      "en": "FFmpeg preset",
+      "zh": "FFmpeg 预设"
+    },
+    {
+      "key": "chartRendererTitle",
+      "en": "Chart Renderer",
+      "zh": "谱面渲染"
+    },
+    {
+      "key": "chartRendererReady",
+      "en": "Ready",
+      "zh": "已就绪"
+    },
+    {
+      "key": "chartRendererRender",
+      "en": "Render Video",
+      "zh": "渲染视频"
+    },
+    {
+      "key": "chartRendererCancel",
+      "en": "Cancel",
+      "zh": "取消"
+    },
+    {
+      "key": "chartRendererMissingLevel",
+      "en": "Load a custom level in the editor first.",
+      "zh": "请先在编辑器加载自定义谱面。"
+    },
+    {
+      "key": "chartRendererMissingSong",
+      "en": "The loaded level has no song file.",
+      "zh": "当前谱面没有音乐文件。"
+    },
+    {
+      "key": "chartRendererMissingFfmpeg",
+      "en": "Missing Tools/ffmpeg.exe in the mod folder.",
+      "zh": "Mod 目录缺少 Tools/ffmpeg.exe。"
+    },
+    {
+      "key": "chartRendererRendering",
+      "en": "Rendering video",
+      "zh": "正在渲染视频"
+    },
+    {
+      "key": "chartRendererMuxing",
+      "en": "Muxing audio",
+      "zh": "正在合成音频"
+    },
+    {
+      "key": "chartRendererDone",
+      "en": "Render complete",
+      "zh": "渲染完成"
+    },
+    {
+      "key": "chartRendererFailed",
+      "en": "Render failed",
+      "zh": "渲染失败"
     }
   ]
 }

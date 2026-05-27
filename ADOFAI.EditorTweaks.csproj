@@ -80,6 +80,9 @@
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>$(ManagedAssembliesDir)\UnityEngine.AudioModule.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>$(ManagedAssembliesDir)\Unity.Collections.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.ClothModule">
       <HintPath>$(ManagedAssembliesDir)\UnityEngine.ClothModule.dll</HintPath>
     </Reference>

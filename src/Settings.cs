@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using UnityModManagerNet;
 using UnityEngine;
 
@@ -32,6 +33,20 @@ namespace ADOFAI.EditorTweaks
 
         public int MaxFloatingPoints = 3;
 
+        public string ChartRenderWorkspaceDirectory = string.Empty;
+
+        public string ChartRenderExportDirectory = string.Empty;
+
+        public int ChartRenderWidth = 1920;
+
+        public int ChartRenderHeight = 1080;
+
+        public int ChartRenderFps = 60;
+
+        public int ChartRenderCrf = 18;
+
+        public string ChartRenderPreset = "veryfast";
+
         private static GUIStyle? panelStyle;
 
         private static GUIStyle? titleStyle;
@@ -53,6 +68,14 @@ namespace ADOFAI.EditorTweaks
         private string intStepText = string.Empty;
 
         private string decimalsText = string.Empty;
+
+        private string renderWidthText = string.Empty;
+
+        private string renderHeightText = string.Empty;
+
+        private string renderFpsText = string.Empty;
+
+        private string renderCrfText = string.Empty;
 
         private bool textFieldsInitialized;
 
@@ -83,6 +106,15 @@ namespace ADOFAI.EditorTweaks
             DrawSection(Text("decorationSection"));
             DecorationMoveSnapStep = DrawFloatRow(Text("decorationMoveSnapStep"), DecorationMoveSnapStep, ref snapStepText, 0f, Text("zeroDisables"));
 
+            DrawSection(Text("renderSection"));
+            ChartRenderWorkspaceDirectory = DrawTextRow(Text("chartRenderWorkspaceDirectory"), ChartRenderWorkspaceDirectory);
+            ChartRenderExportDirectory = DrawTextRow(Text("chartRenderExportDirectory"), ChartRenderExportDirectory);
+            ChartRenderWidth = DrawIntRow(Text("chartRenderWidth"), ChartRenderWidth, ref renderWidthText, 320, 7680);
+            ChartRenderHeight = DrawIntRow(Text("chartRenderHeight"), ChartRenderHeight, ref renderHeightText, 240, 4320);
+            ChartRenderFps = DrawIntRow(Text("chartRenderFps"), ChartRenderFps, ref renderFpsText, 1, 240);
+            ChartRenderCrf = DrawIntRow(Text("chartRenderCrf"), ChartRenderCrf, ref renderCrfText, 0, 51);
+            ChartRenderPreset = DrawTextRow(Text("chartRenderPreset"), ChartRenderPreset);
+
             GUILayout.Space(2);
             GUILayout.EndVertical();
         }
@@ -98,6 +130,10 @@ namespace ADOFAI.EditorTweaks
             floatStepText = FormatFloat(FloatStepPerPixel);
             intStepText = FormatFloat(IntStepPerPixel);
             decimalsText = MaxFloatingPoints.ToString(CultureInfo.InvariantCulture);
+            renderWidthText = ChartRenderWidth.ToString(CultureInfo.InvariantCulture);
+            renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
+            renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
+            renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
             textFieldsInitialized = true;
         }
 
@@ -206,6 +242,15 @@ namespace ADOFAI.EditorTweaks
             return value;
         }
 
+        private static string DrawTextRow(string label, string value)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            string next = GUILayout.TextField(value ?? string.Empty, textFieldStyle, GUILayout.MinWidth(220), GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+            return next;
+        }
+
         private static string FormatFloat(float value)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
@@ -230,6 +275,28 @@ namespace ADOFAI.EditorTweaks
         public override void Save(UnityModManager.ModEntry modEntry)
         {
             Save(this, modEntry);
+        }
+
+        public void EnsureDefaults(UnityModManager.ModEntry modEntry)
+        {
+            string workspace = Path.Combine(modEntry.Path, "Workspace");
+            if (string.IsNullOrWhiteSpace(ChartRenderWorkspaceDirectory))
+            {
+                ChartRenderWorkspaceDirectory = workspace;
+            }
+
+            if (string.IsNullOrWhiteSpace(ChartRenderExportDirectory))
+            {
+                string videos = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos);
+                ChartRenderExportDirectory = string.IsNullOrWhiteSpace(videos)
+                    ? Path.Combine(workspace, "Exports")
+                    : Path.Combine(videos, "ADOFAI Renders");
+            }
+
+            if (string.IsNullOrWhiteSpace(ChartRenderPreset))
+            {
+                ChartRenderPreset = "veryfast";
+            }
         }
 
         public static Settings Load(UnityModManager.ModEntry modEntry)

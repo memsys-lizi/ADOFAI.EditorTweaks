@@ -18,6 +18,7 @@ namespace ADOFAI.EditorTweaks
             Mod = modEntry;
             Localization.Load(modEntry);
             Settings = Settings.Load(modEntry);
+            Settings.EnsureDefaults(modEntry);
 
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = Settings.OnGUI;
