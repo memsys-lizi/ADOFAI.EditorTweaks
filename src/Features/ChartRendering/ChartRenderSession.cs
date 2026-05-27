@@ -27,6 +27,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private int frameIndex;
         private int totalFrames = 1;
         private int frameByteLength;
+        private int repeatedFrameCount;
         private double renderDurationSeconds = 1.0;
         private string tempDirectory = string.Empty;
         private string tempVideoPath = string.Empty;
@@ -51,14 +52,61 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public string DetailText { get; private set; } = string.Empty;
 
-        public string TimingText
+        public string EncoderName { get; private set; } = string.Empty;
+
+        public int WrittenFrames => frameIndex;
+
+        public int TotalFrames => totalFrames;
+
+        public int DuplicateFrames => repeatedFrameCount;
+
+        public float DuplicateRatio => frameIndex <= 0 ? 0f : repeatedFrameCount / (float)frameIndex;
+
+        public double ProcessingFps
         {
             get
             {
                 double elapsed = Math.Max(0.001, stopwatch.Elapsed.TotalSeconds);
-                double fps = frameIndex / elapsed;
+                return frameIndex / elapsed;
+            }
+        }
+
+        public TimeSpan EstimatedRemaining
+        {
+            get
+            {
+                double fps = ProcessingFps;
                 double remaining = fps <= 0.001 ? 0.0 : (totalFrames - frameIndex) / fps;
-                return $"{frameIndex}/{totalFrames}  |  {fps:0.0} fps  |  ETA {TimeSpan.FromSeconds(Math.Max(0, remaining)):hh\\:mm\\:ss}";
+                return TimeSpan.FromSeconds(Math.Max(0, remaining));
+            }
+        }
+
+        public string SmoothnessText
+        {
+            get
+            {
+                float ratio = DuplicateRatio;
+                if (ratio <= 0.01f)
+                {
+                    return "excellent";
+                }
+
+                if (ratio <= 0.03f)
+                {
+                    return "good";
+                }
+
+                if (ratio <= 0.05f)
+                {
+                    return "minor stutter";
+                }
+
+                if (ratio <= 0.10f)
+                {
+                    return "visible stutter";
+                }
+
+                return "heavy stutter";
             }
         }
 
@@ -73,7 +121,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             IsRendering = true;
             stopwatch.Restart();
             frameIndex = 0;
-            frameByteLength = Math.Max(1, settings.ChartRenderWidth * settings.ChartRenderHeight * 3);
+            repeatedFrameCount = 0;
+            frameByteLength = Math.Max(1, settings.ChartRenderWidth * settings.ChartRenderHeight * 4);
             pendingFrames.Clear();
 
             ChartFrameCapture? frameCapture = null;
@@ -132,6 +181,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 yield break;
             }
 
+            audioRecorder?.SeedConductorScheduledSounds(ADOBase.conductor);
+            Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
+            Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
+
             if (!Try(() =>
             {
                 renderDurationSeconds = CalculateTotalDuration();
@@ -139,6 +192,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 frameCapture = new ChartFrameCapture(settings.ChartRenderWidth, settings.ChartRenderHeight);
                 encoder = new FfmpegEncoder(ChartRenderPaths.GetFfmpegPath(), tempVideoPath, outputPath, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps, settings.ChartRenderCrf, settings.ChartRenderPreset);
                 encoder.BeginVideo();
+                EncoderName = encoder.EncoderName;
             }, out failure))
             {
                 result.Success = false;
@@ -149,16 +203,15 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             int requestedFrames = 0;
+            SetForcedFrameTime(0);
+            DetailText = Path.GetFileName(outputPath);
+            yield return null;
+
             while (requestedFrames < totalFrames && !cancelRequested && failure == null)
             {
-                while (pendingFrames.Count >= MaxPendingGpuFrames && !cancelRequested)
+                if (!Try(() => WaitForPendingSlot(encoder!), out failure))
                 {
-                    if (!Try(() => DrainReadyFrames(encoder!), out failure))
-                    {
-                        break;
-                    }
-
-                    yield return null;
+                    break;
                 }
 
                 if (failure != null || cancelRequested)
@@ -168,28 +221,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
                 yield return new WaitForEndOfFrame();
 
-                double captureUntil = GetCurrentCaptureTime();
-                if (captureUntil < 0.0)
-                {
-                    DetailText = Path.GetFileName(outputPath);
-                    continue;
-                }
-
-                if (IsPlaybackFinished())
-                {
-                    captureUntil = double.PositiveInfinity;
-                }
-
                 if (!Try(() =>
                 {
-                    while (requestedFrames < totalFrames
-                        && pendingFrames.Count < MaxPendingGpuFrames
-                        && GetFrameTime(requestedFrames) <= captureUntil)
-                    {
-                        pendingFrames.Enqueue(frameCapture!.RequestFrame(requestedFrames));
-                        requestedFrames++;
-                    }
-
+                    pendingFrames.Enqueue(frameCapture!.RequestFrame(requestedFrames));
+                    requestedFrames++;
+                    SetForcedFrameTime(requestedFrames);
                     DrainReadyFrames(encoder!);
                 }, out failure))
                 {
@@ -211,6 +247,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             frameCapture?.Dispose();
             frameCapture = null;
+            ChartRenderClock.End();
             RestoreState();
 
             if (cancelRequested)
@@ -335,6 +372,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         {
             IsActive = false;
             IsRendering = false;
+            ChartRenderClock.End();
             pendingFrames.Clear();
             onComplete(result);
         }
@@ -348,7 +386,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 try
                 {
                     pending.Complete(buffer);
-                    encoder.WriteFrame(buffer, pending.ByteLength, ReturnFrameBuffer);
+                    encoder.WriteFrame(buffer, pending.ByteLength, pending.RepeatCount, ReturnFrameBuffer);
                     buffer = null!;
                 }
                 finally
@@ -359,8 +397,38 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     }
                 }
 
-                frameIndex++;
+                frameIndex += pending.RepeatCount;
             }
+        }
+
+        private void WaitForPendingSlot(FfmpegEncoder encoder)
+        {
+            while (pendingFrames.Count >= MaxPendingGpuFrames && !cancelRequested)
+            {
+                int before = pendingFrames.Count;
+                DrainReadyFrames(encoder);
+                if (pendingFrames.Count < MaxPendingGpuFrames)
+                {
+                    return;
+                }
+
+                if (pendingFrames.Count == before)
+                {
+                    Thread.Sleep(1);
+                }
+            }
+        }
+
+        private void SetForcedFrameTime(int index)
+        {
+            ChartRenderClock.SetOutputTime(GetFrameTime(index), GetRenderPitch());
+        }
+
+        private float GetRenderPitch()
+        {
+            return ADOBase.conductor == null || ADOBase.conductor.song == null
+                ? 1f
+                : Mathf.Max(0.01f, ADOBase.conductor.song.pitch);
         }
 
         private byte[] RentFrameBuffer()
@@ -424,8 +492,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 savedState = RenderState.Capture();
                 Time.captureFramerate = 0;
                 QualitySettings.vSyncCount = 0;
-                Application.targetFrameRate = Math.Max(240, settings.ChartRenderFps);
+                Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
                 GCS.checkpointNum = 0;
+                ChartRenderClock.Begin();
+                ChartRenderClock.SetOutputTime(0.0, 1f);
                 audioRecorder = ChartRenderAudioRecorder.Begin();
 
                 scnEditor editor = ADOBase.editor;
@@ -538,6 +608,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             encoder?.Dispose();
             audioRecorder?.Dispose();
             audioRecorder = null;
+            ChartRenderClock.End();
 
             if (restoreEditor)
             {

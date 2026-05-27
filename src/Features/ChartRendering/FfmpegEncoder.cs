@@ -11,6 +11,9 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 {
     internal sealed class FfmpegEncoder : IDisposable
     {
+        private static readonly object EncoderProbeLock = new object();
+        private static bool? nvencAvailable;
+
         private readonly string ffmpegPath;
         private readonly string tempVideoPath;
         private readonly string finalVideoPath;
@@ -36,13 +39,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.preset = string.IsNullOrWhiteSpace(preset) ? "veryfast" : preset.Trim();
         }
 
+        public string EncoderName { get; private set; } = "unknown";
+
         public void BeginVideo()
         {
-            string args = "-y -f rawvideo -pixel_format rgb24 "
+            string args = "-y -f rawvideo -pixel_format rgba "
                 + "-video_size " + width + "x" + height + " "
                 + "-framerate " + fps + " "
-                + "-i - -an -c:v libx264 -preset " + Quote(GetRealtimePreset()) + " "
-                + "-crf " + crf + " -vf vflip -pix_fmt yuv420p "
+                + "-i - -an -vf vflip "
+                + GetVideoEncoderArguments() + " "
+                + "-pix_fmt yuv420p "
                 + Quote(tempVideoPath);
 
             process = StartProcess(args, redirectInput: true);
@@ -56,7 +62,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             writerThread.Start();
         }
 
-        public void WriteFrame(byte[] frame, int length, Action<byte[]>? release)
+        public void WriteFrame(byte[] frame, int length, int repeatCount, Action<byte[]>? release)
         {
             if (process == null || process.HasExited)
             {
@@ -68,7 +74,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 throw new InvalidOperationException("FFmpeg writer failed.", writerException);
             }
 
-            frameQueue!.Add(new QueuedFrame(frame, length, release));
+            frameQueue!.Add(new QueuedFrame(frame, length, Math.Max(1, repeatCount), release));
         }
 
         public void CompleteVideo()
@@ -260,7 +266,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 script.Append(string.Concat(mixLabels))
                     .Append("amix=inputs=").Append(mixLabels.Count)
-                    .Append(":duration=longest:dropout_transition=0,atrim=duration=")
+                    .Append(":duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.97,atrim=duration=")
                     .Append(ChartRenderAudioFormat.Number(plan.DurationSeconds))
                     .Append("[mix];")
                     .AppendLine();
@@ -334,7 +340,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 {
                     try
                     {
-                        process!.StandardInput.BaseStream.Write(frame.Buffer, 0, frame.Length);
+                        for (int i = 0; i < frame.RepeatCount; i++)
+                        {
+                            process!.StandardInput.BaseStream.Write(frame.Buffer, 0, frame.Length);
+                        }
                     }
                     finally
                     {
@@ -355,18 +364,98 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             return string.IsNullOrWhiteSpace(preset) || preset == "veryfast" ? "ultrafast" : preset;
         }
 
+        private string GetVideoEncoderArguments()
+        {
+            if (!ForcesCpuEncoder() && IsNvencAvailable())
+            {
+                EncoderName = "h264_nvenc";
+                Main.Log("Chart renderer using h264_nvenc.");
+                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + Math.Max(0, Math.Min(51, crf));
+            }
+
+            EncoderName = "libx264";
+            Main.Log("Chart renderer using libx264.");
+            return "-c:v libx264 -preset " + Quote(GetRealtimePreset()) + " -crf " + crf;
+        }
+
+        private bool ForcesCpuEncoder()
+        {
+            string lowered = preset.ToLowerInvariant();
+            return lowered == "cpu" || lowered == "x264" || lowered.StartsWith("x264:", StringComparison.Ordinal);
+        }
+
+        private bool IsNvencAvailable()
+        {
+            lock (EncoderProbeLock)
+            {
+                if (nvencAvailable.HasValue)
+                {
+                    return nvencAvailable.Value;
+                }
+
+                nvencAvailable = ProbeEncoder("h264_nvenc");
+                return nvencAvailable.Value;
+            }
+        }
+
+        private bool ProbeEncoder(string encoder)
+        {
+            try
+            {
+                ProcessStartInfo info = new ProcessStartInfo
+                {
+                    FileName = ffmpegPath,
+                    Arguments = "-hide_banner -loglevel error -y -f lavfi -i color=size=256x256:rate=1:duration=0.1 -c:v " + encoder + " -frames:v 1 -f null -",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
+
+                using (Process? probe = Process.Start(info))
+                {
+                    if (probe == null)
+                    {
+                        return false;
+                    }
+
+                    if (!probe.WaitForExit(5000))
+                    {
+                        try
+                        {
+                            probe.Kill();
+                        }
+                        catch
+                        {
+                        }
+
+                        return false;
+                    }
+
+                    return probe.ExitCode == 0;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private sealed class QueuedFrame
         {
-            public QueuedFrame(byte[] buffer, int length, Action<byte[]>? release)
+            public QueuedFrame(byte[] buffer, int length, int repeatCount, Action<byte[]>? release)
             {
                 Buffer = buffer;
                 Length = length;
+                RepeatCount = repeatCount;
                 Release = release;
             }
 
             public byte[] Buffer { get; }
 
             public int Length { get; }
+
+            public int RepeatCount { get; }
 
             public Action<byte[]>? Release { get; }
         }
@@ -386,14 +475,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             if (started == null)
             {
                 throw new InvalidOperationException("Failed to start FFmpeg.");
-            }
-
-            try
-            {
-                started.PriorityClass = ProcessPriorityClass.BelowNormal;
-            }
-            catch
-            {
             }
 
             return started;

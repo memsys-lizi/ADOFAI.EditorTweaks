@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 
@@ -12,6 +14,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly object sync = new object();
         private readonly List<RecordedSound> sounds = new List<RecordedSound>();
         private readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+        private bool seededConductorSounds;
+
+        private static readonly BindingFlags InstanceFields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        private static readonly FieldInfo? HitSoundsDataField = typeof(scrConductor).GetField("hitSoundsData", InstanceFields);
+        private static readonly FieldInfo? HoldSoundsDataField = typeof(scrConductor).GetField("holdSoundsData", InstanceFields);
 
         private ChartRenderAudioRecorder()
         {
@@ -29,6 +36,26 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public static void RecordScheduledSound(string clipName, double dspTime, float volume, double endDspTime = -1.0)
         {
             Active?.Record(clipName, dspTime, volume, endDspTime);
+        }
+
+        public void SeedConductorScheduledSounds(scrConductor conductor)
+        {
+            if (seededConductorSounds || conductor == null)
+            {
+                return;
+            }
+
+            seededConductorSounds = true;
+            try
+            {
+                RecordHitSounds(HitSoundsDataField?.GetValue(conductor) as IEnumerable);
+                RecordHoldSounds(HoldSoundsDataField?.GetValue(conductor) as IEnumerable);
+                RecordExtraTicks(conductor.extraTicksCountdown, conductor.hitSoundVolume);
+            }
+            catch (Exception ex)
+            {
+                Main.Log("Failed to seed conductor sounds: " + ex.Message);
+            }
         }
 
         public ChartRenderAudioMixPlan CreateMixPlan(string songPath, string tempDirectory, ChartRenderAudioTiming timing)
@@ -132,6 +159,60 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 {
                     clips.Add(clipName, clip);
                 }
+            }
+        }
+
+        private void RecordHitSounds(IEnumerable? hitSounds)
+        {
+            if (hitSounds == null)
+            {
+                return;
+            }
+
+            foreach (object item in hitSounds)
+            {
+                Type type = item.GetType();
+                object? hitSound = type.GetField("hitSound", InstanceFields)?.GetValue(item);
+                double time = Convert.ToDouble(type.GetField("time", InstanceFields)?.GetValue(item), CultureInfo.InvariantCulture);
+                float volume = Convert.ToSingle(type.GetField("volume", InstanceFields)?.GetValue(item), CultureInfo.InvariantCulture);
+                if (hitSound != null)
+                {
+                    Record("snd" + hitSound, time, volume, -1.0);
+                }
+            }
+        }
+
+        private void RecordHoldSounds(IEnumerable? holdSounds)
+        {
+            if (holdSounds == null)
+            {
+                return;
+            }
+
+            foreach (object item in holdSounds)
+            {
+                Type type = item.GetType();
+                string? name = type.GetField("name", InstanceFields)?.GetValue(item) as string;
+                double time = Convert.ToDouble(type.GetField("time", InstanceFields)?.GetValue(item), CultureInfo.InvariantCulture);
+                double endTime = Convert.ToDouble(type.GetField("endTime", InstanceFields)?.GetValue(item), CultureInfo.InvariantCulture);
+                float volume = Convert.ToSingle(type.GetField("volume", InstanceFields)?.GetValue(item), CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    Record(name!, time, volume, endTime);
+                }
+            }
+        }
+
+        private void RecordExtraTicks(IEnumerable<scrConductor.ExtraTickData>? extraTicks, float volume)
+        {
+            if (extraTicks == null)
+            {
+                return;
+            }
+
+            foreach (scrConductor.ExtraTickData tick in extraTicks)
+            {
+                Record("sndHat", tick.time, volume, -1.0);
             }
         }
 
