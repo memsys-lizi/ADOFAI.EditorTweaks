@@ -16,6 +16,11 @@
                Condition="'$(GameExePath)' != '' AND !Exists('$(GameExePath)')" />
     </Target>
 
+    <!-- 按需下载 FFmpeg / Download FFmpeg on demand -->
+    <Target Name="EnsureFfmpegTool" BeforeTargets="CopyToOut" Condition="'$(OS)' == 'Windows_NT' AND !Exists('$(ProjectDir)tools\ffmpeg.exe')">
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\EnsureFfmpeg.ps1&quot; -ToolsDirectory &quot;$(ProjectDir)tools&quot;" />
+    </Target>
+
     <!-- 复制文件到 out 文件夹 / Copy files to out folder -->
     <Target Name="CopyToOut" AfterTargets="Build">
         <PropertyGroup>

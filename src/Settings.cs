@@ -47,6 +47,8 @@ namespace ADOFAI.EditorTweaks
 
         public string ChartRenderPreset = "veryfast";
 
+        public bool ChartRenderShowHitJudgments = true;
+
         private static GUIStyle? panelStyle;
 
         private static GUIStyle? titleStyle;
@@ -114,6 +116,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderFps = DrawIntRow(Text("chartRenderFps"), ChartRenderFps, ref renderFpsText, 1, 240);
             ChartRenderCrf = DrawIntRow(Text("chartRenderCrf"), ChartRenderCrf, ref renderCrfText, 0, 51);
             ChartRenderPreset = DrawTextRow(Text("chartRenderPreset"), ChartRenderPreset);
+            ChartRenderShowHitJudgments = DrawToggleRow(ChartRenderShowHitJudgments, Text("chartRenderShowHitJudgments"));
 
             GUILayout.Space(2);
             GUILayout.EndVertical();

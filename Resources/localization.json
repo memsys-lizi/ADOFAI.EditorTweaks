@@ -126,6 +126,11 @@
       "zh": "FFmpeg 预设"
     },
     {
+      "key": "chartRenderShowHitJudgments",
+      "en": "Show hit judgments while rendering",
+      "zh": "渲染时显示判定文字"
+    },
+    {
       "key": "chartRendererTitle",
       "en": "Chart Renderer",
       "zh": "谱面渲染"

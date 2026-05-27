@@ -24,6 +24,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private GUIStyle? hintStyle;
         private GUIStyle? inputStyle;
         private GUIStyle? buttonStyle;
+        private GUIStyle? toggleStyle;
         private GUIStyle? sectionStyle;
         private GUIStyle? rowStyle;
         private Texture2D? pixel;
@@ -117,6 +118,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         {
             float width = windowRect.width;
             drawWidth = width;
+            DrawRect(new Rect(0f, 40f, width, Mathf.Max(0f, windowRect.height - 40f)), new Color(0.075f, 0.083f, 0.092f, 0.98f));
             DrawRect(new Rect(0f, 0f, width, 40f), new Color(0.09f, 0.11f, 0.13f, 0.72f));
             DrawRect(new Rect(0f, 39f, width, 1f), new Color(0.32f, 0.56f, 0.64f, 0.44f));
             DrawWindowBorder(width, windowRect.height);
@@ -138,7 +140,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             }
 
             Rect scrollRect = new Rect(0f, 48f, width, windowRect.height - 56f);
-            Rect viewRect = new Rect(0f, 0f, width - 16f, 398f);
+            Rect viewRect = new Rect(0f, 0f, width - 16f, 432f);
             scrollPosition = GUI.BeginScrollView(scrollRect, scrollPosition, viewRect, false, true);
             drawWidth = viewRect.width;
 
@@ -229,7 +231,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private void DrawChartRenderPanel(float y)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            Rect panelRect = new Rect(20f, y, width - 40f, 102f);
+            Rect panelRect = new Rect(20f, y, width - 40f, 136f);
             GUI.Box(panelRect, GUIContent.none, rowStyle);
             DrawRect(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
 
@@ -242,10 +244,18 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 status = chartRenderMessage;
             }
 
-            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 10f, panelRect.width - 28f, 38f), status, labelStyle);
+            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 10f, panelRect.width - 28f, 34f), status, labelStyle);
+
+            Rect toggleRect = new Rect(panelRect.x + 14f, panelRect.y + 52f, panelRect.width - 28f, 24f);
+            bool showJudgments = GUI.Toggle(toggleRect, Main.Settings.ChartRenderShowHitJudgments, Settings.Text("chartRenderShowHitJudgments"), toggleStyle);
+            if (showJudgments != Main.Settings.ChartRenderShowHitJudgments)
+            {
+                Main.Settings.ChartRenderShowHitJudgments = showJudgments;
+                SaveSettings();
+            }
 
             GUI.enabled = canRender;
-            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 58f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
+            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 92f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
             {
                 StartChartRender();
             }
@@ -413,7 +423,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return;
             }
 
-            Texture2D windowBackground = MakeTexture(new Color(0.035f, 0.040f, 0.046f, 0.93f));
+            Texture2D windowBackground = MakeTexture(new Color(0.075f, 0.083f, 0.092f, 0.98f));
             windowStyle = new GUIStyle(GUI.skin.window)
             {
                 padding = new RectOffset(0, 0, 0, 0),
@@ -484,6 +494,21 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                     background = MakeTexture(new Color(0.20f, 0.28f, 0.30f, 0.98f)),
                     textColor = Color.white
                 }
+            };
+            toggleStyle = new GUIStyle(GUI.skin.toggle)
+            {
+                fontSize = 12,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
+                padding = new RectOffset(18, 0, 2, 0),
+                normal = { textColor = new Color(0.83f, 0.88f, 0.90f, 1f) },
+                hover = { textColor = Color.white },
+                focused = { textColor = Color.white },
+                active = { textColor = Color.white },
+                onNormal = { textColor = new Color(0.90f, 0.98f, 1f, 1f) },
+                onHover = { textColor = Color.white },
+                onFocused = { textColor = Color.white },
+                onActive = { textColor = Color.white }
             };
             sectionStyle = new GUIStyle(GUI.skin.label)
             {
