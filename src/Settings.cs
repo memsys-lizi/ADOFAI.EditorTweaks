@@ -11,6 +11,8 @@ namespace ADOFAI.EditorTweaks
 
         public bool EnableDecorationPivotFix = true;
 
+        public bool EnableVideoBackgroundSyncFix = true;
+
         public bool PersistEditorPreferences = true;
 
         public bool ShowEditorOverlay = true;
@@ -35,6 +37,7 @@ namespace ADOFAI.EditorTweaks
             EnableNumericDrag = GUILayout.Toggle(EnableNumericDrag, Text("enableNumericDrag"));
             EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
             EnableDecorationPivotFix = GUILayout.Toggle(EnableDecorationPivotFix, Text("fixDecorationPivot"));
+            EnableVideoBackgroundSyncFix = GUILayout.Toggle(EnableVideoBackgroundSyncFix, Text("fixVideoBackgroundSync"));
             PersistEditorPreferences = GUILayout.Toggle(PersistEditorPreferences, Text("persistEditorPreferences"));
             ShowEditorOverlay = GUILayout.Toggle(ShowEditorOverlay, Text("showEditorOverlay"));
 
@@ -98,6 +101,8 @@ namespace ADOFAI.EditorTweaks
                         return "修复镜头相对装饰拖动";
                     case "fixDecorationPivot":
                         return "修复镜头/视差装饰轴心显示";
+                    case "fixVideoBackgroundSync":
+                        return "修复中途播放时视频背景延迟";
                     case "persistEditorPreferences":
                         return "持久化官方编辑器偏好设置";
                     case "showEditorOverlay":
@@ -133,6 +138,8 @@ namespace ADOFAI.EditorTweaks
                     return "Fix camera-relative decoration dragging";
                 case "fixDecorationPivot":
                     return "Fix camera/parallax decoration pivot";
+                case "fixVideoBackgroundSync":
+                    return "Fix video background sync from checkpoints";
                 case "persistEditorPreferences":
                     return "Persist official editor preferences";
                 case "showEditorOverlay":
