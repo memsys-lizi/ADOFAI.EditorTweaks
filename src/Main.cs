@@ -16,6 +16,7 @@ namespace ADOFAI.EditorTweaks
         public static bool Load(UnityModManager.ModEntry modEntry)
         {
             Mod = modEntry;
+            Localization.Load(modEntry);
             Settings = Settings.Load(modEntry);
 
             modEntry.OnToggle = OnToggle;

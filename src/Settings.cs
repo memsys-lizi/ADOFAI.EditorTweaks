@@ -1,3 +1,4 @@
+using System.Globalization;
 using UnityModManagerNet;
 using UnityEngine;
 
@@ -31,132 +32,194 @@ namespace ADOFAI.EditorTweaks
 
         public int MaxFloatingPoints = 3;
 
+        private static GUIStyle? panelStyle;
+
+        private static GUIStyle? titleStyle;
+
+        private static GUIStyle? sectionStyle;
+
+        private static GUIStyle? labelStyle;
+
+        private static GUIStyle? hintStyle;
+
+        private static GUIStyle? toggleStyle;
+
+        private static GUIStyle? textFieldStyle;
+
+        private string snapStepText = string.Empty;
+
+        private string floatStepText = string.Empty;
+
+        private string intStepText = string.Empty;
+
+        private string decimalsText = string.Empty;
+
+        private bool textFieldsInitialized;
+
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
-            GUILayout.Label(Text("title"));
-            EnableNumericDrag = GUILayout.Toggle(EnableNumericDrag, Text("enableNumericDrag"));
-            EnableCameraRelativeDecorationDragFix = GUILayout.Toggle(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
-            EnableDecorationPivotFix = GUILayout.Toggle(EnableDecorationPivotFix, Text("fixDecorationPivot"));
-            EnableVideoBackgroundSyncFix = GUILayout.Toggle(EnableVideoBackgroundSyncFix, Text("fixVideoBackgroundSync"));
-            PersistEditorPreferences = GUILayout.Toggle(PersistEditorPreferences, Text("persistEditorPreferences"));
-            ShowEditorOverlay = GUILayout.Toggle(ShowEditorOverlay, Text("showEditorOverlay"));
+            EnsureStyles();
+            EnsureTextFields();
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(Text("decorationMoveSnapStep"), GUILayout.Width(170));
-            if (float.TryParse(GUILayout.TextField(DecorationMoveSnapStep.ToString("0.###"), GUILayout.Width(100)), out float snapStep))
-            {
-                DecorationMoveSnapStep = Mathf.Max(0f, snapStep);
-            }
-            GUILayout.Label(Text("zeroDisables"));
-            GUILayout.EndHorizontal();
+            GUILayout.BeginVertical(panelStyle);
+            GUILayout.Label(Text("title"), titleStyle);
+            GUILayout.Space(4);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(Text("floatStepPerPixel"), GUILayout.Width(170));
-            if (float.TryParse(GUILayout.TextField(FloatStepPerPixel.ToString("0.###"), GUILayout.Width(100)), out float floatStep))
-            {
-                FloatStepPerPixel = Mathf.Max(0.0001f, floatStep);
-            }
-            GUILayout.EndHorizontal();
+            DrawSection(Text("fixesSection"));
+            EnableCameraRelativeDecorationDragFix = DrawToggleRow(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
+            EnableDecorationPivotFix = DrawToggleRow(EnableDecorationPivotFix, Text("fixDecorationPivot"));
+            EnableVideoBackgroundSyncFix = DrawToggleRow(EnableVideoBackgroundSyncFix, Text("fixVideoBackgroundSync"));
+            PersistEditorPreferences = DrawToggleRow(PersistEditorPreferences, Text("persistEditorPreferences"));
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(Text("intStepPerPixel"), GUILayout.Width(170));
-            if (float.TryParse(GUILayout.TextField(IntStepPerPixel.ToString("0.###"), GUILayout.Width(100)), out float intStep))
-            {
-                IntStepPerPixel = Mathf.Max(0.0001f, intStep);
-            }
-            GUILayout.EndHorizontal();
+            DrawSection(Text("overlaySection"));
+            ShowEditorOverlay = DrawToggleRow(ShowEditorOverlay, Text("showEditorOverlay"));
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(Text("maxFloatDecimals"), GUILayout.Width(170));
-            if (int.TryParse(GUILayout.TextField(MaxFloatingPoints.ToString(), GUILayout.Width(100)), out int decimals))
+            DrawSection(Text("numericSection"));
+            EnableNumericDrag = DrawToggleRow(EnableNumericDrag, Text("enableNumericDrag"));
+            FloatStepPerPixel = DrawFloatRow(Text("floatStepPerPixel"), FloatStepPerPixel, ref floatStepText, 0.0001f);
+            IntStepPerPixel = DrawFloatRow(Text("intStepPerPixel"), IntStepPerPixel, ref intStepText, 0.0001f);
+            MaxFloatingPoints = DrawIntRow(Text("maxFloatDecimals"), MaxFloatingPoints, ref decimalsText, 0, 8);
+
+            DrawSection(Text("decorationSection"));
+            DecorationMoveSnapStep = DrawFloatRow(Text("decorationMoveSnapStep"), DecorationMoveSnapStep, ref snapStepText, 0f, Text("zeroDisables"));
+
+            GUILayout.Space(2);
+            GUILayout.EndVertical();
+        }
+
+        private void EnsureTextFields()
+        {
+            if (textFieldsInitialized)
             {
-                MaxFloatingPoints = Mathf.Clamp(decimals, 0, 8);
+                return;
             }
+
+            snapStepText = FormatFloat(DecorationMoveSnapStep);
+            floatStepText = FormatFloat(FloatStepPerPixel);
+            intStepText = FormatFloat(IntStepPerPixel);
+            decimalsText = MaxFloatingPoints.ToString(CultureInfo.InvariantCulture);
+            textFieldsInitialized = true;
+        }
+
+        private static void EnsureStyles()
+        {
+            if (panelStyle != null)
+            {
+                return;
+            }
+
+            panelStyle = new GUIStyle(GUI.skin.box)
+            {
+                padding = new RectOffset(14, 14, 12, 14),
+                margin = new RectOffset(4, 4, 4, 4)
+            };
+            titleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 16,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.92f, 0.98f, 1f, 1f) }
+            };
+            sectionStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(0, 0, 5, 2),
+                normal = { textColor = new Color(0.74f, 0.88f, 1f, 1f) }
+            };
+            labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(0, 8, 0, 0)
+            };
+            hintStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.72f, 0.72f, 0.72f, 1f) }
+            };
+            toggleStyle = new GUIStyle(GUI.skin.toggle)
+            {
+                fontSize = 12,
+                margin = new RectOffset(0, 0, 3, 3),
+                padding = new RectOffset(24, 6, 3, 3)
+            };
+            textFieldStyle = new GUIStyle(GUI.skin.textField)
+            {
+                fontSize = 12,
+                alignment = TextAnchor.MiddleCenter,
+                fixedHeight = 22
+            };
+        }
+
+        private static void DrawSection(string text)
+        {
+            GUILayout.Space(8);
+            GUILayout.Label(text, sectionStyle);
+            Rect rect = GUILayoutUtility.GetRect(1f, 1f, GUILayout.ExpandWidth(true));
+            EditorTweaksGui.DrawRect(rect, new Color(0.35f, 0.52f, 0.70f, 0.45f));
+            GUILayout.Space(2);
+        }
+
+        private static bool DrawToggleRow(bool value, string text)
+        {
+            GUILayout.BeginHorizontal();
+            bool next = GUILayout.Toggle(value, text, toggleStyle, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
+            return next;
+        }
+
+        private static float DrawFloatRow(string label, float value, ref string text, float min, string? hint = null)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            text = GUILayout.TextField(text, textFieldStyle, GUILayout.Width(96));
+            if (TryParseFloat(text, out float next))
+            {
+                value = Mathf.Max(min, next);
+            }
+
+            if (!string.IsNullOrEmpty(hint))
+            {
+                GUILayout.Label(hint, hintStyle, GUILayout.Width(90));
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            return value;
+        }
+
+        private static int DrawIntRow(string label, int value, ref string text, int min, int max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            text = GUILayout.TextField(text, textFieldStyle, GUILayout.Width(96));
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int next))
+            {
+                value = Mathf.Clamp(next, min, max);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            return value;
+        }
+
+        private static string FormatFloat(float value)
+        {
+            return value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private static bool TryParseFloat(string raw, out float value)
+        {
+            return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+                || float.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
         }
 
         public static string Text(string key)
         {
-            bool chinese = RDString.language == SystemLanguage.Chinese
-                || RDString.language == SystemLanguage.ChineseSimplified
-                || RDString.language == SystemLanguage.ChineseTraditional;
-
-            if (chinese)
-            {
-                switch (key)
-                {
-                    case "title":
-                        return "ADOFAI 编辑器优化";
-                    case "overlayTitle":
-                        return "Editor Tweaks";
-                    case "decorationSection":
-                        return "装饰";
-                    case "numericSection":
-                        return "数值拖动";
-                    case "fixesSection":
-                        return "修复";
-                    case "enableNumericDrag":
-                        return "启用数值输入框拖动调节";
-                    case "fixCameraRelativeDecorationDrag":
-                        return "修复镜头相对装饰拖动";
-                    case "fixDecorationPivot":
-                        return "修复镜头/视差装饰轴心显示";
-                    case "fixVideoBackgroundSync":
-                        return "修复中途播放时视频背景延迟";
-                    case "persistEditorPreferences":
-                        return "持久化官方编辑器偏好设置";
-                    case "showEditorOverlay":
-                        return "在编辑器内显示快捷设置浮窗";
-                    case "decorationMoveSnapStep":
-                        return "装饰移动吸附精度";
-                    case "zeroDisables":
-                        return "0 = 关闭";
-                    case "floatStepPerPixel":
-                        return "小数每像素步进";
-                    case "intStepPerPixel":
-                        return "整数每像素步进";
-                    case "maxFloatDecimals":
-                        return "小数最大位数";
-                }
-            }
-
-            switch (key)
-            {
-                case "title":
-                    return "ADOFAI Editor Tweaks";
-                case "overlayTitle":
-                    return "Editor Tweaks";
-                case "decorationSection":
-                    return "Decoration";
-                case "numericSection":
-                    return "Numeric drag";
-                case "fixesSection":
-                    return "Fixes";
-                case "enableNumericDrag":
-                    return "Enable numeric drag fields";
-                case "fixCameraRelativeDecorationDrag":
-                    return "Fix camera-relative decoration dragging";
-                case "fixDecorationPivot":
-                    return "Fix camera/parallax decoration pivot";
-                case "fixVideoBackgroundSync":
-                    return "Fix video background sync from checkpoints";
-                case "persistEditorPreferences":
-                    return "Persist official editor preferences";
-                case "showEditorOverlay":
-                    return "Show editor quick settings overlay";
-                case "decorationMoveSnapStep":
-                    return "Decoration move snap step";
-                case "zeroDisables":
-                    return "0 = off";
-                case "floatStepPerPixel":
-                    return "Float step per pixel";
-                case "intStepPerPixel":
-                    return "Int step per pixel";
-                case "maxFloatDecimals":
-                    return "Max float decimals";
-                default:
-                    return key;
-            }
+            return Localization.Text(key);
         }
 
         public void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -172,6 +235,31 @@ namespace ADOFAI.EditorTweaks
         public static Settings Load(UnityModManager.ModEntry modEntry)
         {
             return Load<Settings>(modEntry);
+        }
+
+        private static class EditorTweaksGui
+        {
+            private static Texture2D? pixel;
+
+            public static void DrawRect(Rect rect, Color color)
+            {
+                if (Event.current.type != EventType.Repaint)
+                {
+                    return;
+                }
+
+                if (pixel == null)
+                {
+                    pixel = new Texture2D(1, 1);
+                    pixel.SetPixel(0, 0, Color.white);
+                    pixel.Apply();
+                }
+
+                Color previous = GUI.color;
+                GUI.color = color;
+                GUI.DrawTexture(rect, pixel);
+                GUI.color = previous;
+            }
         }
     }
 }

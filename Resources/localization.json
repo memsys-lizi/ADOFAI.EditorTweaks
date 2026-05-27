@@ -1,0 +1,89 @@
+{
+  "entries": [
+    {
+      "key": "title",
+      "en": "ADOFAI Editor Tweaks",
+      "zh": "ADOFAI 编辑器优化"
+    },
+    {
+      "key": "overlayTitle",
+      "en": "Editor Tweaks",
+      "zh": "Editor Tweaks"
+    },
+    {
+      "key": "decorationSection",
+      "en": "Decoration",
+      "zh": "装饰"
+    },
+    {
+      "key": "numericSection",
+      "en": "Numeric drag",
+      "zh": "数值拖动"
+    },
+    {
+      "key": "fixesSection",
+      "en": "Fixes",
+      "zh": "修复"
+    },
+    {
+      "key": "overlaySection",
+      "en": "Overlay",
+      "zh": "浮窗"
+    },
+    {
+      "key": "enableNumericDrag",
+      "en": "Enable numeric drag fields",
+      "zh": "启用数值输入框拖动调节"
+    },
+    {
+      "key": "fixCameraRelativeDecorationDrag",
+      "en": "Fix camera-relative decoration dragging",
+      "zh": "修复镜头相对装饰拖动"
+    },
+    {
+      "key": "fixDecorationPivot",
+      "en": "Fix camera/parallax decoration pivot",
+      "zh": "修复镜头/视差装饰轴心显示"
+    },
+    {
+      "key": "fixVideoBackgroundSync",
+      "en": "Fix video background sync from checkpoints",
+      "zh": "修复中途播放时视频背景延迟"
+    },
+    {
+      "key": "persistEditorPreferences",
+      "en": "Persist official editor preferences",
+      "zh": "持久化官方编辑器偏好设置"
+    },
+    {
+      "key": "showEditorOverlay",
+      "en": "Show editor quick settings overlay",
+      "zh": "在编辑器内显示快捷设置浮窗"
+    },
+    {
+      "key": "decorationMoveSnapStep",
+      "en": "Decoration move snap step",
+      "zh": "装饰移动吸附精度"
+    },
+    {
+      "key": "zeroDisables",
+      "en": "0 = off",
+      "zh": "0 = 关闭"
+    },
+    {
+      "key": "floatStepPerPixel",
+      "en": "Float step per pixel",
+      "zh": "小数每像素步进"
+    },
+    {
+      "key": "intStepPerPixel",
+      "en": "Int step per pixel",
+      "zh": "整数每像素步进"
+    },
+    {
+      "key": "maxFloatDecimals",
+      "en": "Max float decimals",
+      "zh": "小数最大位数"
+    }
+  ]
+}
