@@ -321,6 +321,13 @@ temp_video.mp4
 final.mp4
 ```
 
+如果高级设置里的音频同步偏移不为 0，mux 阶段会额外加 audio filter：
+
+- 正数：音频提前。用 `atrim=start=<seconds>,asetpts=PTS-STARTPTS` 裁掉音频开头，让后面的声音更早对上画面。
+- 负数：音频延后。用 `adelay=<ms>:all=1,asetpts=PTS-STARTPTS` 给音频补延迟。
+
+这个设置是给固定偏移环境兜底的，不参与游戏时间轴，也不会影响球、滤镜或自动打击。
+
 之前 FFmpeg mux exit code `-22` 的常见原因是输出文件名带非法字符或路径异常。`ChartRenderPaths.MakeSafeFileName()` 会：
 
 - 去掉富文本 tag。

@@ -90,6 +90,7 @@ ChartRenderSession.IsRendering
 - CRF 限制在 0 到 51。
 - preset 空值回到 `veryfast`。
 - 结尾尾巴秒数不允许小于 0。
+- 音频同步偏移限制在 -5000 到 5000 毫秒。
 
 ## 构建和部署
 

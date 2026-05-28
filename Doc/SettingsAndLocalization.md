@@ -44,6 +44,7 @@
 | `ChartRenderCrf` | 18 | 画质参数。NVENC 时作为 QP，x264 时作为 CRF。 |
 | `ChartRenderPreset` | veryfast | 编码方式。默认优先 GPU；`cpu` / `x264` / `x264:<preset>` 可强制 CPU。 |
 | `ChartRenderCompletionTailSeconds` | 5 | 谱面结束后额外录制秒数。 |
+| `ChartRenderAudioSyncOffsetMs` | 0 | 高级兜底音频同步偏移。正数让音频提前，负数让音频延后。 |
 | `ChartRenderShowHitJudgments` | true | 导出时是否显示判定文字。 |
 | `ChartRenderAdvancedSettingsExpanded` | false | UMM 高级渲染设置是否展开。 |
 
@@ -73,6 +74,7 @@
 - 工作区目录。
 - 画质参数。
 - 编码方式。
+- 音频同步偏移。
 
 ## 输入框临时状态
 
@@ -98,6 +100,7 @@
 - CRF 范围：0 到 51。
 - preset 为空则回到 `veryfast`。
 - 结束尾巴秒数最小为 0。
+- 音频同步偏移范围：-5000 到 5000 毫秒。
 
 ## 默认路径
 
@@ -170,4 +173,5 @@
 - 宽高必须保持偶数，FFmpeg `yuv420p` 和硬件编码器都更稳。
 - 高级设置默认隐藏，否则普通用户会被 CRF / preset 吓到。
 - `ChartRenderPreset` 不是单纯 x264 preset，它还承担强制 CPU 的控制。
+- 音频同步偏移只应该作为兜底校准使用。比如音频慢 10 帧且导出 60fps，可先试 `167ms`。
 - 本地化文件缺失时不能让 Mod 加载失败，只写日志并回退 key。
