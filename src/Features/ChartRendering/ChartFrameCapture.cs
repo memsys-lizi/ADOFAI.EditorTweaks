@@ -1,5 +1,4 @@
 using System;
-using HarmonyLib;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -7,7 +6,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 {
     internal sealed class ChartFrameCapture : IDisposable
     {
-        private readonly int width;
         private readonly int height;
         private readonly RenderTexture captureTarget;
         private readonly int rowBytes;
@@ -24,7 +22,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public ChartFrameCapture(int width, int height)
         {
-            this.width = width;
             this.height = height;
             rowBytes = width * 4;
 
@@ -75,6 +72,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 quadRenderer.material.mainTexture = captureTarget;
             }
+
+            ChartRenderDiagnostics.Log("Frame capture camera chain: Bgcamstatic="
+                + CameraName(bgStaticCamera) + ", BGcam=" + CameraName(bgCamera)
+                + ", camobj=" + CameraName(mainCamera)
+                + ", scene=" + ADOBase.sceneName + ".");
         }
 
         public PendingFrame RequestFrame(int index, int repeatCount = 1)
@@ -112,6 +114,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 captureTarget.Release();
                 UnityEngine.Object.Destroy(captureTarget);
             }
+        }
+
+        private static string CameraName(Camera camera)
+        {
+            return camera == null ? "<null>" : camera.name + "(depth=" + camera.depth + ")";
         }
 
         public sealed class PendingFrame

@@ -111,7 +111,9 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return false;
             }
 
-            return (ADOBase.isEditingLevel && ADOBase.editor != null) || ChartRenderSession.IsRendering;
+            return (ADOBase.isEditingLevel && ADOBase.editor != null)
+                || ChartRenderSession.IsPlayableLevelLoaded()
+                || ChartRenderSession.IsRendering;
         }
 
         private void DrawWindow(int id)
@@ -291,18 +293,18 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private static string GetChartRenderDisabledReason()
         {
             scnEditor editor = ADOBase.editor;
-            scnGame? level = editor != null ? editor.customLevel : null;
-            if (editor == null
-                || editor.isLoading
-                || level == null
-                || level.levelData == null
-                || editor.floors == null
-                || editor.floors.Count <= 1)
+            if (!ChartRenderSession.IsPlayableLevelLoaded())
             {
                 return Settings.Text("chartRendererMissingLevel");
             }
 
-            if (string.IsNullOrEmpty(level.levelData.songFilename))
+            scnGame? level = editor != null ? editor.customLevel : null;
+            if (editor != null && (level == null || level.levelData == null || string.IsNullOrEmpty(level.levelData.songFilename)))
+            {
+                return Settings.Text("chartRendererMissingSong");
+            }
+
+            if (editor == null && !ChartRenderSession.HasRenderableAudio())
             {
                 return Settings.Text("chartRendererMissingSong");
             }
