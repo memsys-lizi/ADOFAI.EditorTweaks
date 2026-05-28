@@ -389,6 +389,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             IsActive = false;
             IsRendering = false;
             ChartRenderVisualClock.End();
+            RestoreState();
             ChartRenderDiagnostics.End();
             pendingFrames.Clear();
             onComplete(result);
@@ -761,9 +762,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             try
             {
-                if (ADOBase.editor != null && !ADOBase.editor.inStrictlyEditingMode)
+                scnEditor editor = ADOBase.editor;
+                if (editor != null && (editor.playMode || !editor.inStrictlyEditingMode))
                 {
-                    ADOBase.editor.SwitchToEditMode();
+                    editor.SwitchToEditMode();
                 }
             }
             catch (Exception ex)
