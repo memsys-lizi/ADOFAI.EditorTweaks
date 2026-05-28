@@ -48,7 +48,10 @@ UnityModManager -> ADOFAI.EditorTweaks.Main.Load
 - `Settings.cs`：UMM 设置对象、设置 UI、默认值、渲染参数范围校验。
 - `Localization.cs`：JSON 本地化加载和语言选择。
 - `Resources/localization.json`：用户可见文本。
-- `ADOFAIMod.targets`：构建后复制、FFmpeg 下载、部署到游戏目录。
+- `ADOFAIMod.targets`：构建后复制、FFmpeg 下载、部署到游戏目录、生成 Build 产物和 zip。
+- `scripts/EnsureFfmpeg.ps1`：缺失时下载并校验 FFmpeg。
+- `scripts/BumpModVersion.ps1`：发行构建时递增 `Info.json` 版本号。
+- `scripts/PackageMod.ps1`：把 `out/` 打包成 `Build/<ModId>-<Version>/` 和 zip。
 
 ## 状态管理
 
@@ -89,6 +92,7 @@ ChartRenderSession.IsRendering
 - FPS 限制在 1 到 240。
 - CRF 限制在 0 到 51。
 - preset 空值回到 `veryfast`。
+- 编码档位、回读格式、预览模式非法时回到默认值。
 - 结尾尾巴秒数不允许小于 0。
 - 音频同步偏移限制在 -5000 到 5000 毫秒。
 
@@ -102,13 +106,23 @@ ChartRenderSession.IsRendering
 dotnet build
 ```
 
+推荐脚本：
+
+```bat
+build-dev.bat
+build-release.bat
+build-release.bat Patch
+```
+
 `ADOFAIMod.targets` 做：
 
 1. `ValidateGameExePath`：游戏 exe 不存在则构建失败。
 2. `EnsureFfmpegTool`：Windows 下如果 `tools/ffmpeg.exe` 缺失，调用 `scripts/EnsureFfmpeg.ps1` 下载。
-3. `CopyToOut`：复制 DLL、`Info.json`、`Resources`、`Tools` 到 `out/`。
-4. `DeployAndLaunch`：部署到游戏的 `Mods/ADOFAI.EditorTweaks/`。
-5. `AutoLaunchGame=true` 时才启动游戏。
+3. `BumpInfoJsonVersion`：仅在 `BumpModVersion=true` 时递增版本号。
+4. `CopyToOut`：清空并重建 `out/`，复制 DLL、`Info.json`、`Resources`、`Tools`、`ThirdParty`。
+5. `PackageMod`：生成 `Build/<ModId>-<Version>/` 和 `Build/<ModId>-<Version>.zip`。
+6. `DeployAndLaunch`：部署到游戏的 `Mods/ADOFAI.EditorTweaks/`。
+7. `AutoLaunchGame=true` 时才启动游戏。
 
 ## 维护原则
 

@@ -12,7 +12,12 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `ChartRenderSession.cs` | 一次渲染的主协程。负责准备目录、启动播放、定帧循环、结束检测、取消、恢复状态、调用 FFmpeg。 |
+| `ChartRenderSession.cs` | 一次渲染的主协程。负责状态机、阶段切换、结束检测、取消和总调度。 |
+| `ChartRenderPlaybackController.cs` | 保存/恢复编辑器状态，选择第 0 格，启动官方播放路径，管理 `RDC.auto` 启用时机。 |
+| `ChartRenderFramePipeline.cs` | 管理 GPU readback pending 队列、帧 buffer pool、FFmpeg 写入反压。 |
+| `ChartRenderMemoryBudget.cs` | 按输出分辨率计算单帧大小、内存预算、GPU pending 上限和 FFmpeg 队列上限。 |
+| `ChartRenderProgressModel.cs` | 计算进度、处理速度、ETA、重复帧比例和流畅度提示。 |
+| `ChartRenderOptionValues.cs` | 统一管理编码档位、回读格式、预览模式等设置值。 |
 | `ChartFrameCapture.cs` | 使用官方 `scrCamera` 相机链捕获画面到 `RenderTexture`，并用 `AsyncGPUReadback` 异步读回。 |
 | `ChartUnityAudioCapture.cs` | 使用 Unity `AudioRenderer` 离线捕获音频并写成 float32 WAV。 |
 | `FfmpegEncoder.cs` | FFmpeg rawvideo pipe、GPU/CPU 编码选择、视频完成、音频 mux。 |
@@ -63,7 +68,7 @@ StartCoroutine(chartRenderSession.Run(callback))
    - 设置 `temp_video.mp4`、`audio.wav`、最终输出路径。
    - 开启 `ChartRenderDiagnostics.Begin(render.log)`。
 3. `TryStartPlayback()`：
-   - `RenderState.Capture()` 保存旧状态。
+   - `ChartRenderPlaybackController` 保存旧状态。
    - 设置 `Time.captureFramerate` 为目标 FPS。
    - `QualitySettings.vSyncCount = 0`。
    - `Application.targetFrameRate = max(1000, fps * 4)`。
@@ -77,6 +82,8 @@ StartCoroutine(chartRenderSession.Run(callback))
    - 记录 pitch、addoffset、当前 input offset 到日志。
 6. 初始化：
    - 估算总时长。
+   - 创建 `ChartRenderMemoryBudget`。
+   - 创建 `ChartRenderFramePipeline`。
    - 创建 `ChartFrameCapture`。
    - 创建并启动 `ChartUnityAudioCapture`。
    - 创建 `FfmpegEncoder` 并 `BeginVideo()`。
@@ -86,7 +93,7 @@ StartCoroutine(chartRenderSession.Run(callback))
    - `audioCapture.CaptureFrame()`。
    - `frameCapture.RequestFrame(requestedFrames)`。
    - `SetForcedFrameTime(requestedFrames + 1)`。
-   - `DrainReadyFrames(encoder)`。
+   - `ChartRenderFramePipeline.DrainReadyFrames(encoder)`。
    - 检测关卡结束并切换到尾巴帧数。
 8. Drain 剩余 GPU 帧。
 9. 完成音频、恢复状态。
@@ -106,10 +113,10 @@ editor.SelectFloor(editor.floors[0], cameraJump: false)
 GCS.checkpointNum = 0
 RDC.auto = false
 editor.Play()
-RDC.auto = true
+RDC.auto = false
 ```
 
-先 `RDC.auto = false` 是为了让官方 `editor.Play()` 按正常路径初始化；播放启动后再打开 auto，由 Mod 的自动打击逻辑接管。
+先 `RDC.auto = false` 是为了让官方 `editor.Play()` 按正常路径初始化。真正的 `RDC.auto = true` 要等 `BeginForcedVisualClock()` 锚定视觉时钟后才开启，同时设置 `ChartRenderSession.IsAutoPlaybackReady = true`。这是防止开局跳砖块和一帧追打一串砖块的关键保护。
 
 ### 游戏 / 官谱 / scnGame
 
@@ -168,6 +175,7 @@ Patch 点：
 判断条件：
 
 - 正在渲染。
+- 自动播放已经允许，`ChartRenderSession.IsAutoPlaybackReady == true`。
 - 视觉时钟活跃。
 - controller 不为空。
 - controller 没暂停。
@@ -231,13 +239,28 @@ Patch 点：
 - 背景、滤镜、视频背景、overlay quad 都由官方 `scrCamera` 管。
 - 自建相机容易漏掉后处理或 depth 顺序。
 
-读回：
+读回默认：
 
 ```text
 AsyncGPUReadback.Request(captureTarget, 0, TextureFormat.RGBA32)
 ```
 
-完成后 `request.GetData<byte>()` copy 到 byte[]，交给 FFmpeg writer。
+高级设置可以切到实验性的 `TextureFormat.BGRA32`。如果当前 Unity runtime 不支持 BGRA，会记录日志并回退 RGBA。
+
+完成后 `request.GetData<byte>()` copy 到复用的 byte[]，交给 `ChartRenderFramePipeline` 再写入 FFmpeg writer。
+
+## 内存预算与队列
+
+渲染瓶颈主要来自 GPU readback、CPU 拷贝、raw frame pipe 和编码器吞吐。不能让队列按固定帧数无限堆，所以现在按分辨率计算预算：
+
+| 分辨率级别 | 单帧 RGBA 估算 | 默认缓存预算 | GPU readback pending |
+| --- | ---: | ---: | ---: |
+| 1080p | 约 7.9 MiB | 384 MiB | 最多 8 帧 |
+| 1440p | 约 14.1 MiB | 512 MiB | 最多 6 帧 |
+| 4K | 约 31.6 MiB | 512 MiB | 最多 4 帧 |
+| 8K | 约 126.6 MiB | 768 MiB | 最多 2 帧 |
+
+FFmpeg 写入队列也按 `width * height * 4` 换算最大缓存帧数。队列满时会阻塞渲染推进，输出时间轴不变，只是等待更久。
 
 注意：
 
@@ -276,11 +299,11 @@ Patch `scrSfx.PlaySfx(... InterfaceParent ...)` 的原因：
 
 ## FFmpeg
 
-`FfmpegEncoder` 的视频命令输入是 raw RGBA：
+`FfmpegEncoder` 的视频命令输入默认是 raw RGBA，实验模式可切到 raw BGRA：
 
 ```text
 -f rawvideo
--pixel_format rgba
+-pixel_format rgba|bgra
 -video_size <width>x<height>
 -framerate <fps>
 -i -
@@ -291,20 +314,18 @@ Patch `scrSfx.PlaySfx(... InterfaceParent ...)` 的原因：
 temp_video.mp4
 ```
 
-编码器选择：
+编码档位：
 
-- 默认先探测 `h264_nvenc`。
-- 探测成功使用 NVENC：
-  - `-c:v h264_nvenc`
-  - `-preset p1`
-  - `-tune ll`
-  - `-rc constqp`
-  - `-qp <crf>`
-- 如果 preset 是 `cpu`、`x264` 或 `x264:<preset>`，强制 CPU。
-- CPU 使用：
-  - `-c:v libx264`
-  - `-preset <preset>`
-  - `-crf <crf>`
+| 档位 | NVENC | x264 回退 | 用途 |
+| --- | --- | --- | --- |
+| Auto Balanced | `h264_nvenc p4` | `veryfast` | 默认推荐，优先 GPU，兼顾速度和质量。 |
+| Fastest | `h264_nvenc p1` | `ultrafast` | 最快出片。 |
+| Balanced | `h264_nvenc p4` | `veryfast` | 手动指定均衡。 |
+| Quality | `h264_nvenc p6` | `fast` | 更慢，但压缩质量更稳。 |
+| CPU Compatibility | 不使用 | `veryfast` | 硬件编码失败或兼容性排查。 |
+| Custom | 兼容旧逻辑 | `cpu` / `x264:<preset>` | 高级手动兜底。 |
+
+默认输出仍是 H.264 + yuv420p + AAC + MP4 + faststart，播放器和投稿兼容性主要来自这些封装和格式，而不是 `fast` / `veryfast` 名称本身。
 
 音频 mux：
 
@@ -340,7 +361,7 @@ final.mp4
 
 `Cancel()` 只设置 `cancelRequested = true`。主协程和后台线程会在安全点检查。
 
-恢复状态由 `RenderState` 负责：
+恢复状态由 `ChartRenderPlaybackController` 内部的状态快照负责：
 
 - `RDC.auto`
 - `GCS.checkpointNum`

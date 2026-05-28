@@ -56,7 +56,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `ChartRenderVisualClock.cs` | `scrConductor.set_songposition_minusi` | Prefix | `ChartRenderVisualClock.TryGetSongPosition` 成功 | 把 conductor 视觉时间强制为输出帧时间 | 必须在播放 schedule 后锚定，否则起点相位会错 |
 | `ChartRenderVisualClock.cs` | `scrConductor.get_calibration_i` | Prefix | `ChartRenderSession.IsRendering` | 返回 `0`，去掉玩家输入偏移对视觉相位的影响 | 不影响音频，音频来自 Unity AudioRenderer |
-| `ChartRenderAutoPlayer.cs` | `scrConductor.Update` | Postfix | `IsRendering` 且视觉时钟活跃 | 自动补打当前帧应命中的砖块 | 每帧最多 16 次，避免异常无限追块 |
+| `ChartRenderAutoPlayer.cs` | `scrConductor.Update` | Postfix | `IsRendering`、`IsAutoPlaybackReady` 且视觉时钟活跃 | 自动补打当前帧应命中的砖块 | 必须等视觉时钟锚定后才允许自动打击；每帧最多 16 次 |
 | `ChartRenderAutoPlayer.cs` | `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)` | Prefix | `IsRendering` | 跳过异步输入角度修正，记录 suppressed 计数 | 这是防止球突然跳角的重要 Patch |
 | `ChartRenderAudioPatches.cs` | `scrSfx.PlaySfx(AudioClip, MixerGroup, float, float, float)` | Prefix | `IsRendering && group == InterfaceParent` | 屏蔽 UMM / 菜单 / 界面音效进入音频捕获 | 只屏蔽 InterfaceParent，不屏蔽谱面音效 |
 | `ChartRenderJudgmentPatches.cs` | `scrHitTextManager.ShowHitText(HitMargin, scrPlanet, float)` | Prefix | `IsRendering && !ChartRenderShowHitJudgments` | 导出时隐藏 Perfect / Early / Late 等判定字 | 只影响渲染期间 |
@@ -65,7 +65,9 @@
 
 | 文件 | API / 类型 | 作用 | 风险点 |
 | --- | --- | --- | --- |
-| `ChartFrameCapture.cs` | `AsyncGPUReadback.Request` | 从专用 RenderTexture 异步读回 RGBA 帧 | GPU readback 失败会抛异常并终止渲染 |
+| `ChartFrameCapture.cs` | `AsyncGPUReadback.Request` | 从专用 RenderTexture 异步读回 RGBA/BGRA 帧 | GPU readback 失败会抛异常并终止渲染 |
+| `ChartRenderFramePipeline.cs` | pending queue + buffer pool | 限制 GPU readback pending，复用帧 buffer，向 FFmpeg 写入并支持反压 | 队列满会降低处理速度，但不能改变输出时间轴 |
+| `ChartRenderMemoryBudget.cs` | 分辨率预算 | 按 `width * height * 4` 计算缓存上限、pending 上限和 FFmpeg 队列上限 | 4K/8K 必须优先防止内存峰值失控 |
 | `ChartUnityAudioCapture.cs` | `AudioRenderer.Start/Render/Stop` | 离线捕获 Unity mixer 输出 | 必须在 Dispose 中 Stop，否则可能污染后续音频状态 |
 | `FfmpegEncoder.cs` | `Process` + stdin pipe | rawvideo 进入 FFmpeg 编码 | writer 线程异常需要回传主流程 |
-| `ADOFAIMod.targets` | MSBuild Target | 下载 FFmpeg、复制资源、部署 Mod | 不要提交 ffmpeg.exe 到 git |
+| `ADOFAIMod.targets` | MSBuild Target | 下载 FFmpeg、复制资源、部署 Mod、生成 Build 产物和 zip | 不要提交 ffmpeg.exe 或 Build 产物到 git |

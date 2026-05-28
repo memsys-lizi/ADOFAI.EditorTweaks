@@ -42,7 +42,10 @@
 | `ChartRenderHeight` | 1080 | 视频高度。 |
 | `ChartRenderFps` | 60 | 成品帧率。 |
 | `ChartRenderCrf` | 18 | 画质参数。NVENC 时作为 QP，x264 时作为 CRF。 |
-| `ChartRenderPreset` | veryfast | 编码方式。默认优先 GPU；`cpu` / `x264` / `x264:<preset>` 可强制 CPU。 |
+| `ChartRenderPreset` | veryfast | 自定义编码字符串，仅在 `ChartRenderEncoderMode = custom` 时显示。 |
+| `ChartRenderEncoderMode` | auto-balanced | 编码档位。默认优先 GPU，并在失败时回退 CPU。 |
+| `ChartRenderCaptureFormat` | rgba | GPU readback 格式。`bgra` 是实验模式。 |
+| `ChartRenderPreviewMode` | full | 渲染时预览模式。可选完整、暗色、极简。 |
 | `ChartRenderCompletionTailSeconds` | 5 | 谱面结束后额外录制秒数。 |
 | `ChartRenderAudioSyncOffsetMs` | 0 | 高级兜底音频同步偏移。正数让音频提前，负数让音频延后。 |
 | `ChartRenderShowHitJudgments` | true | 导出时是否显示判定文字。 |
@@ -55,7 +58,7 @@
 设计原则：
 
 - 面向玩家的基础设置默认显示。
-- CRF、preset、workspace 这类不直观的设置放到高级设置里。
+- CRF、编码档位、workspace、回读格式、预览模式这类不直观的设置放到高级设置里。
 - 每个渲染设置都有单独重置按钮。
 - 有一键恢复渲染默认。
 - 修改渲染设置后立即保存，下一次渲染生效。
@@ -73,7 +76,10 @@
 
 - 工作区目录。
 - 画质参数。
-- 编码方式。
+- 编码档位。
+- 自定义编码字符串，仅在自定义档位下显示。
+- GPU readback 格式。
+- 渲染预览模式。
 - 音频同步偏移。
 
 ## 输入框临时状态
@@ -99,6 +105,9 @@
 - FPS 范围：1 到 240。
 - CRF 范围：0 到 51。
 - preset 为空则回到 `veryfast`。
+- 编码档位非法则回到 `auto-balanced`。
+- 回读格式非法则回到 `rgba`。
+- 预览模式非法则回到 `full`。
 - 结束尾巴秒数最小为 0。
 - 音频同步偏移范围：-5000 到 5000 毫秒。
 
@@ -171,7 +180,8 @@
 ## 踩坑记录
 
 - 宽高必须保持偶数，FFmpeg `yuv420p` 和硬件编码器都更稳。
-- 高级设置默认隐藏，否则普通用户会被 CRF / preset 吓到。
-- `ChartRenderPreset` 不是单纯 x264 preset，它还承担强制 CPU 的控制。
+- 高级设置默认隐藏，否则普通用户会被 CRF / 编码档位 / 回读格式吓到。
+- `ChartRenderPreset` 现在只作为 Custom 档位的兼容兜底；普通用户应该使用 `ChartRenderEncoderMode`。
+- BGRA readback 只是实验项，默认保持 RGBA 更稳。
 - 音频同步偏移只应该作为兜底校准使用。比如音频慢 10 帧且导出 60fps，可先试 `167ms`。
 - 本地化文件缺失时不能让 Mod 加载失败，只写日志并回退 key。

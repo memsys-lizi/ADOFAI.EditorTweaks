@@ -7,6 +7,8 @@
 - [Architecture.md](Architecture.md)：项目架构、加载流程、构建部署、状态管理。
 - [PatchInventory.md](PatchInventory.md)：所有 Harmony Patch 的目标方法、类型、作用和风险点。
 - [SettingsAndLocalization.md](SettingsAndLocalization.md)：UMM 设置、本地化、默认值和 UI 设计。
+- [BuildAndRelease.md](BuildAndRelease.md)：开发构建、正式发行、自动升版本、Build 产物和 zip 打包。
+- [../CHANGELOG.md](../CHANGELOG.md)：版本更新日志。
 
 ## Features
 
@@ -23,3 +25,4 @@
 - 修改 `src/Features/<FeatureName>` 时同步更新对应模块文档。
 - 修改渲染器时优先更新 [ChartRendering.md](ChartRendering.md)，因为渲染功能牵涉视觉、音频、输入、FFmpeg、UI 和日志。
 - 面向玩家的设置变化同步更新 [SettingsAndLocalization.md](SettingsAndLocalization.md)。
+- 修改构建、打包、版本号或发行脚本时同步更新 [BuildAndRelease.md](BuildAndRelease.md) 和 [../CHANGELOG.md](../CHANGELOG.md)。
