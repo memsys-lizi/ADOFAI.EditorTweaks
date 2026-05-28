@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using UnityEngine;
@@ -179,7 +180,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 yield break;
             }
 
-            SetForcedFrameTime(0);
+            BeginForcedVisualClock();
             Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
             Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
             ChartRenderDiagnostics.LogFrame(0, 0);
@@ -497,8 +498,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
                 GCS.checkpointNum = 0;
-                ChartRenderVisualClock.Begin();
-                SetForcedFrameTime(0);
                 ChartRenderDiagnostics.Log("Starting official editor playback for render.");
 
                 scnEditor editor = ADOBase.editor;
@@ -579,6 +578,29 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private void SetForcedFrameTime(int index)
         {
             ChartRenderVisualClock.SetFrameTime(GetFrameTime(index), GetRenderPitch());
+        }
+
+        private void BeginForcedVisualClock()
+        {
+            scrConductor conductor = ADOBase.conductor;
+            double startSongPosition = conductor == null ? 0.0 : conductor.songposition_minusi;
+            ChartRenderVisualClock.Begin(startSongPosition);
+            SetForcedFrameTime(0);
+
+            int inputOffsetMs = 0;
+            try
+            {
+                inputOffsetMs = scrConductor.currentPreset.inputOffset;
+            }
+            catch
+            {
+            }
+
+            double addOffset = conductor == null ? 0.0 : conductor.addoffset;
+            WriteLog("Visual clock anchored at songposition=" + Number(startSongPosition)
+                + " pitch=" + Number(GetRenderPitch())
+                + " addoffset=" + Number(addOffset)
+                + " suppressedInputOffsetMs=" + inputOffsetMs + ".");
         }
 
         private float GetRenderPitch()
@@ -697,6 +719,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private void WriteLog(string message)
         {
             ChartRenderDiagnostics.Log(message);
+        }
+
+        private static string Number(double value)
+        {
+            return double.IsNaN(value) || double.IsInfinity(value)
+                ? value.ToString(CultureInfo.InvariantCulture)
+                : value.ToString("0.######", CultureInfo.InvariantCulture);
         }
 
         private static bool Try(Action action, out Exception? failure)
