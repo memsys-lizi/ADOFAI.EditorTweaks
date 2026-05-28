@@ -123,8 +123,8 @@ namespace ADOFAI.EditorTweaks.Features.DecorationSelection
             bool ignoreModifiers)
         {
             Vector2 dragDelta = editor.GetDecorationDragDelta(translation, decoration);
-            Vector2 parallax = selectedDecoration.data.TryGetValue("parallax", out object parallaxValue)
-                ? (Vector2)parallaxValue
+            Vector2 parallax = selectedDecoration.TryGet<Vector2>("parallax", out Vector2 parallaxValue)
+                ? parallaxValue
                 : Vector2.zero;
             if (parallax.x == 100f)
             {

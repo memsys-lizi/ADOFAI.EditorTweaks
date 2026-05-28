@@ -26,7 +26,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <GameExePath>C:\Steam\steamapps\common\A Dance of Fire and Ice\A Dance of Fire and Ice.exe</GameExePath>
+    <GameExePath>D:\Steam\steamapps\common\A Dance of Fire and Ice\A Dance of Fire and Ice.exe</GameExePath>
     <AutoLaunchGame>false</AutoLaunchGame>
   </PropertyGroup>
 
@@ -55,6 +55,9 @@
     </Reference>
     <Reference Include="RDTools">
       <HintPath>$(ManagedAssembliesDir)\RDTools.dll</HintPath>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(ManagedAssembliesDir)\netstandard.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(ManagedAssembliesDir)\UnityEngine.dll</HintPath>

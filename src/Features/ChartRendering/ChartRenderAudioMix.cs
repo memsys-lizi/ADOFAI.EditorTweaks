@@ -19,6 +19,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private static readonly BindingFlags InstanceFields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private static readonly FieldInfo? HitSoundsDataField = typeof(scrConductor).GetField("hitSoundsData", InstanceFields);
         private static readonly FieldInfo? HoldSoundsDataField = typeof(scrConductor).GetField("holdSoundsData", InstanceFields);
+        private static readonly MethodInfo? AudioClipGetDataMethod = typeof(AudioClip).GetMethod("GetData", new[] { typeof(float[]), typeof(int) });
 
         private ChartRenderAudioRecorder()
         {
@@ -249,7 +250,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             try
             {
                 float[] samples = new float[clip.samples * clip.channels];
-                if (!clip.GetData(samples, 0))
+                if (!TryGetAudioClipData(clip, samples))
                 {
                     return false;
                 }
@@ -286,6 +287,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 Main.Log("Failed to export audio clip " + clip.name + ": " + ex.Message);
                 return false;
             }
+        }
+
+        private static bool TryGetAudioClipData(AudioClip clip, float[] samples)
+        {
+            object? result = AudioClipGetDataMethod?.Invoke(clip, new object[] { samples, 0 });
+            return result is bool success && success;
         }
 
         private static string MakeSafeFileName(string raw)
