@@ -10,7 +10,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public static void CatchUp()
         {
-            if (!ChartRenderSession.IsRendering || !ChartRenderVisualClock.IsActive)
+            if (!ChartRenderSession.IsRendering || !ChartRenderSession.IsAutoPlaybackReady || !ChartRenderVisualClock.IsActive)
             {
                 return;
             }

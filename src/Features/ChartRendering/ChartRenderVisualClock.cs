@@ -46,4 +46,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
         }
     }
+
+    [HarmonyPatch(typeof(scrConductor), "get_songposition_minusi")]
+    internal static class ChartRenderConductorSongPositionGetterPatch
+    {
+        private static void Postfix(ref double __result)
+        {
+            if (ChartRenderVisualClock.TryGetSongPosition(out double songPosition))
+            {
+                __result = songPosition;
+            }
+        }
+    }
 }

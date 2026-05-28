@@ -50,6 +50,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public static bool IsRendering { get; private set; }
 
+        public static bool IsAutoPlaybackReady { get; private set; }
+
         public float Progress => totalFrames <= 0 ? 0f : Mathf.Clamp01((float)frameIndex / totalFrames);
 
         public string StageText { get; private set; } = Settings.Text("chartRendererRendering");
@@ -123,6 +125,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         {
             IsActive = true;
             IsRendering = true;
+            IsAutoPlaybackReady = false;
             stopwatch.Restart();
             frameIndex = 0;
             repeatedFrameCount = 0;
@@ -199,6 +202,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 EncoderName = encoder.EncoderName;
                 BeginForcedVisualClock();
                 SetForcedFrameTimeFromAudioCursor(0);
+                EnableRenderAutoPlayback();
                 ChartRenderDiagnostics.LogFrame(0, 0);
             }, out failure))
             {
@@ -398,6 +402,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private void Finish(Action<ChartRenderResult> onComplete, ChartRenderResult result)
         {
+            IsAutoPlaybackReady = false;
             IsActive = false;
             IsRendering = false;
             ChartRenderVisualClock.End();
@@ -543,7 +548,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             GCS.checkpointNum = 0;
             RDC.auto = false;
             editor.Play();
-            RDC.auto = true;
+            RDC.auto = false;
+            ChartRenderDiagnostics.Log("Editor playback requested from floor 0. checkpoint=" + GCS.checkpointNum
+                + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
+                + " playerFloor=" + GetPrimaryPlayerFloor()
+                + " auto=" + RDC.auto + ".");
         }
 
         private static bool StartGameScenePlayback()
@@ -559,7 +568,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 + " scnGame=" + (ADOBase.customLevel != null)
                 + " state=" + controller.state);
 
-            RDC.auto = true;
+            RDC.auto = false;
             if (IsPlaybackScheduled())
             {
                 ChartRenderDiagnostics.Log("Game scene playback is already scheduled; capturing current timeline.");
@@ -583,6 +592,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             return true;
+        }
+
+        private void EnableRenderAutoPlayback()
+        {
+            RDC.auto = true;
+            IsAutoPlaybackReady = true;
+            WriteLog("Render auto playback enabled after visual clock anchor. songposition="
+                + Number(ADOBase.conductor == null ? double.NaN : ADOBase.conductor.songposition_minusi)
+                + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
+                + " floor=" + GetPrimaryPlayerFloor() + ".");
         }
 
         private static void AbortWaitingForStartCoroutine(scrController controller)
@@ -864,6 +883,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private void Cleanup(ChartFrameCapture? frameCapture, FfmpegEncoder? encoder, bool restoreEditor, bool deleteTemp)
         {
+            IsAutoPlaybackReady = false;
             frameCapture?.Dispose();
             encoder?.Dispose();
             audioCapture?.Dispose();
