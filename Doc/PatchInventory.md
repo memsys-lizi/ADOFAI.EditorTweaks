@@ -1,0 +1,71 @@
+# Harmony Patch 清单
+
+本文档列出当前项目的全部 Harmony Patch。新增、删除或改动 Patch 时必须同步更新这里。
+
+## NumericDrag
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `NumericDragPatches.cs` | `PropertyControl_Text.Setup` | Postfix | `EnableNumericDrag` 为 true，字段类型是 Int / Float / Tile | 调用 `NumericDragFeature.Attach(PropertyControl_Text)` 给 TMP 输入框挂拖动组件 | 官方控件结构变化时 `inputField` 或 `propertyInfo` 可能为空 |
+| `NumericDragPatches.cs` | `PropertyControl_Vector2.Setup` | Postfix | `EnableNumericDrag` 为 true | 给 Vector2 的 X/Y 输入框分别挂拖动组件 | Vector2 min/max 来自 `propertyInfo.minVec/maxVec` |
+| `NumericDragPatches.cs` | `DraggableNumberInputField.OnPointerDown` | Prefix | 组件上存在 `EditorTweaksNumericDragMarker` | 只允许右键拖动，写入 `_startValue`、`_startPos`、`_isDragging`、`_down` | 使用官方私有字段名，官方重命名会失效 |
+| `NumericDragPatches.cs` | `DraggableNumberInputField.OnPointerUp` | Prefix | 组件上存在 marker | 停止拖动并在确实拖动过时提交 `onEndEdit` | 要避免普通左键编辑输入框被误拦 |
+| `NumericDragPatches.cs` | `DraggableNumberInputField.SetArrowsVisible` | Prefix | 所有实例 | `arrows == null` 时跳过官方方法 | 防御性 Patch，避免本 Mod 创建无箭头组件时报错 |
+
+## DecorationSelection
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `CameraRelativeDecorationDragPatches.cs` | `scnEditor.DragDecorationsStart` | Postfix | `EnableCameraRelativeDecorationDragFix` | 对 Camera / CameraAspect 装饰，把拖动起点缓存改为事件数据坐标 | 访问私有字段 `decorationPositionsAtDragStart` |
+| `CameraRelativeDecorationDragPatches.cs` | `scnEditor.DragDecorations` | Prefix | 选中项包含 Camera / CameraAspect 装饰 | 接管拖动计算，按屏幕空间换算位置，保留 Shift 轴锁定 | 访问私有字段 `addXDragCache`、`addYDragCache` |
+| `DecorationMoveSnapPatches.cs` | `scnEditor.DragDecorations` | Postfix | `DecorationMoveSnapStep > 0` 且不是 gizmo 拖动 | 对拖动后的 `position` 做 round 吸附并刷新 UI | 需要分别处理 Tile、Camera、CameraAspect 坐标系 |
+| `DecorationPivotPatches.cs` | `DecorationPivot.UpdatePivotCrossImage` | Prefix | `EnableDecorationPivotFix` | 单选装饰时把轴心十字放到实际 decoration transform | 多选或未选时隐藏 |
+| `DecorationPivotPatches.cs` | `scrDecoration.UpdateScreenClamp` | Postfix | Camera / CameraAspect 装饰 | 修正 `scrParallax.screenRelativePos`，让屏幕 clamp 坐标正确 | CameraAspect 要乘 `Screen.height / Screen.width` |
+| `DecorationPivotPatches.cs` | `scrParallax.SetTrans` | Postfix | 当前选中的装饰就是该 parallax 所属装饰 | 视差变换后刷新轴心十字 | 只在编辑器且单选时执行 |
+
+## VideoBackgroundSync
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `VideoBackgroundSyncPatches.cs` | `scrVfxPlus.Reset` | Postfix | 总是 | 根据实例 ID 删除同步状态 | 防止复用 VFX 实例时沿用旧状态 |
+| `VideoBackgroundSyncPatches.cs` | `scrVfxPlus.Update` | Postfix | `EnableVideoBackgroundSyncFix` 且视频准备完毕、conductor 已启动、非暂停、Full VFX | 校正 `VideoPlayer.time` 和 `playbackSpeed` | seek 不能太频繁，否则长视频会卡；所以有启动窗口和 cooldown |
+
+## EditorPreferences
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `EditorPreferencesPersistencePatches.cs` | `EditorPreferencesEntry.NotifyChange` | Postfix | `PersistEditorPreferences` | 调用 `Persistence.generalPrefs.Save()` | 保存失败只写日志，不能打断官方 UI |
+
+## EditorOverlay
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `EditorOverlayInputBlockPatches.cs` | `scnEditor.Update` | Prefix | 普通浮窗鼠标捕获，或渲染模态窗口活跃 | 阻止编辑器响应点击、滚轮、键盘 | 渲染时可以跳过编辑器 Update，但不能跳过 controller Update |
+| `EditorOverlayInputBlockPatches.cs` | `scnEditor.ZoomCamera` | Prefix | 同上 | 防止滚轮穿透导致缩放 | 即使某些路径绕过 Update 直接调用 ZoomCamera，也能拦住 |
+| `EditorOverlayInputBlockPatches.cs` | `scrController.Update` | Prefix | 普通浮窗鼠标捕获 | 阻止悬浮窗点击穿透到游戏控制器 | 渲染模态时不能拦，否则视频推进可能停止 |
+| `EditorOverlayInputBlockPatches.cs` | `scrController.TogglePauseGame` | Prefix | 渲染模态窗口活跃 | 阻止用户按键暂停游戏 | 返回当前 paused 状态，保持调用方语义 |
+| `EditorOverlayInputBlockPatches.cs` | `scrPlayerManager.AnyValidInputWasTriggered` | Prefix | 渲染模态窗口活跃 | 阻止 Press To Start、结算退出等玩家输入 | 自动打击不走这个路径 |
+| `EditorOverlayInputBlockPatches.cs` | `scrPlayer.ValidInputWasTriggered` | Prefix | 渲染模态窗口活跃 | 阻止键盘/鼠标输入触发命中 | 自动打击直接调用 `Hit(isAuto: true)` |
+| `EditorOverlayInputBlockPatches.cs` | `scrPlayer.ValidInputWasReleased` | Prefix | 渲染模态窗口活跃 | 阻止用户松键影响 hold | 自动打击路径不会依赖用户松键 |
+| `EditorOverlayInputBlockPatches.cs` | `scrPlayer.CountValidKeysPressed` | Prefix | 渲染模态窗口活跃 | 返回 0，阻止输入计数 | 防止 multipress、hold 等逻辑被人工输入污染 |
+| `EditorOverlayInputBlockPatches.cs` | `StandaloneInputModule.Process` | Prefix | 普通浮窗鼠标捕获，或渲染模态窗口活跃 | 阻止 Unity UI 背景点击 | IMGUI 浮窗本身不依赖 StandaloneInputModule |
+
+## ChartRendering
+
+| 文件 | 目标方法 | 类型 | 条件 | 作用 | 风险点 |
+| --- | --- | --- | --- | --- | --- |
+| `ChartRenderVisualClock.cs` | `scrConductor.set_songposition_minusi` | Prefix | `ChartRenderVisualClock.TryGetSongPosition` 成功 | 把 conductor 视觉时间强制为输出帧时间 | 必须在播放 schedule 后锚定，否则起点相位会错 |
+| `ChartRenderVisualClock.cs` | `scrConductor.get_calibration_i` | Prefix | `ChartRenderSession.IsRendering` | 返回 `0`，去掉玩家输入偏移对视觉相位的影响 | 不影响音频，音频来自 Unity AudioRenderer |
+| `ChartRenderAutoPlayer.cs` | `scrConductor.Update` | Postfix | `IsRendering` 且视觉时钟活跃 | 自动补打当前帧应命中的砖块 | 每帧最多 16 次，避免异常无限追块 |
+| `ChartRenderAutoPlayer.cs` | `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)` | Prefix | `IsRendering` | 跳过异步输入角度修正，记录 suppressed 计数 | 这是防止球突然跳角的重要 Patch |
+| `ChartRenderAudioPatches.cs` | `scrSfx.PlaySfx(AudioClip, MixerGroup, float, float, float)` | Prefix | `IsRendering && group == InterfaceParent` | 屏蔽 UMM / 菜单 / 界面音效进入音频捕获 | 只屏蔽 InterfaceParent，不屏蔽谱面音效 |
+| `ChartRenderJudgmentPatches.cs` | `scrHitTextManager.ShowHitText(HitMargin, scrPlanet, float)` | Prefix | `IsRendering && !ChartRenderShowHitJudgments` | 导出时隐藏 Perfect / Early / Late 等判定字 | 只影响渲染期间 |
+
+## 非 Harmony 但同样关键的 Hook
+
+| 文件 | API / 类型 | 作用 | 风险点 |
+| --- | --- | --- | --- |
+| `ChartFrameCapture.cs` | `AsyncGPUReadback.Request` | 从专用 RenderTexture 异步读回 RGBA 帧 | GPU readback 失败会抛异常并终止渲染 |
+| `ChartUnityAudioCapture.cs` | `AudioRenderer.Start/Render/Stop` | 离线捕获 Unity mixer 输出 | 必须在 Dispose 中 Stop，否则可能污染后续音频状态 |
+| `FfmpegEncoder.cs` | `Process` + stdin pipe | rawvideo 进入 FFmpeg 编码 | writer 线程异常需要回传主流程 |
+| `ADOFAIMod.targets` | MSBuild Target | 下载 FFmpeg、复制资源、部署 Mod | 不要提交 ffmpeg.exe 到 git |

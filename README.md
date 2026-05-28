@@ -1,183 +1,41 @@
 # ADOFAI Editor Tweaks
 
-Language: English | [中文](README.zh-CN.md)
+ADOFAI Editor Tweaks 是一个用于 **A Dance of Fire and Ice** 的 UnityModManager Mod。它的定位不是做大型功能包，而是把编辑器里长期影响工作流的细节补齐，并提供一个可以直接导出谱面视频的离线渲染器。
 
-ADOFAI Editor Tweaks is a UnityModManager mod for **A Dance of Fire and Ice**. It focuses on editor workflow improvements, fixes for custom-level editing edge cases, a compact in-editor quick settings overlay, and an offline chart video renderer.
+当前版本主要包含：
 
-The mod is built as a Harmony patch library targeting `net481`.
+- 编辑器数值输入框右键拖动调节。
+- Camera / CameraAspect 装饰拖动、轴心显示和移动吸附修复。
+- 从中途播放时的视频背景同步修复。
+- 官方编辑器偏好设置即时保存。
+- 编辑器内快捷设置浮窗。
+- 自定义谱面、官谱、`scnGame` 场景下的离线定帧视频渲染。
+- 渲染时的画面、音频、输入、UI 遮罩和诊断日志。
 
-## Features
+更细的模块文档放在 [Doc](Doc/README.md)。根 README 负责说明项目整体架构、功能入口、Patch 总表和渲染核心原理。
 
-### Numeric Drag Fields
-
-Adds drag-to-adjust behavior to numeric editor fields that normally behave like plain text boxes.
-
-Supported controls:
-
-- Integer fields
-- Float fields
-- Tile fields
-- Vector2 fields
-
-The implementation reuses the game's existing `DraggableNumberInputField` component and attaches it to supported `PropertyControl_Text` and `PropertyControl_Vector2` inputs. During drag, values are applied live to the selected event so decoration positions, background settings, sliders, and indicators refresh immediately.
-
-Settings:
-
-- Float step per pixel
-- Int step per pixel
-- Maximum float decimals
-
-Files:
-
-- `src/Features/NumericDrag/NumericDragFeature.cs`
-- `src/Features/NumericDrag/NumericDragPatches.cs`
-- `src/Features/NumericDrag/EditorTweaksNumericDragMarker.cs`
-
-### Decoration Selection Fixes
-
-Improves several decoration editing behaviors.
-
-- Fixes dragging camera-relative decorations.
-- Keeps camera-relative and camera-aspect decoration movement aligned with screen-space expectations.
-- Preserves axis locking behavior while dragging.
-- Fixes pivot cross placement for camera/parallax decorations.
-- Adds configurable decoration move snapping.
-
-Settings:
-
-- Fix camera-relative decoration dragging
-- Fix camera/parallax decoration pivot
-- Decoration move snap step, where `0` disables snapping
-
-Files:
-
-- `src/Features/DecorationSelection/CameraRelativeDecorationDragPatches.cs`
-- `src/Features/DecorationSelection/DecorationPivotPatches.cs`
-- `src/Features/DecorationSelection/DecorationMoveSnapPatches.cs`
-
-### Video Background Sync Fix
-
-Fixes video backgrounds drifting or appearing delayed when previewing a level from the middle of the chart.
-
-The base game starts video backgrounds once after `VideoPlayer.Prepare()` completes and sets `VideoPlayer.time` only once. Random seeking into longer videos can finish late, which is most visible when playback starts from a checkpoint or an editor-selected floor. This mod checks the video time against the conductor time during the startup window and corrects the video if it falls out of sync.
-
-The target video time follows the game's timing model:
-
-```text
-songposition_minusi - countdownOffset + vidOffset
-```
-
-Looping videos are wrapped by video length when available.
-
-File:
-
-- `src/Features/VideoBackgroundSync/VideoBackgroundSyncPatches.cs`
-
-### Chart Video Renderer
-
-Exports the currently loaded editor chart to an MP4 video without recording the desktop or editor UI.
-
-The renderer starts playback through the game's normal editor play path so chart setup, decorations, camera movement, filters, video backgrounds, hitsounds, hold sounds, and `PlaySound` events are initialized by the game itself. Rendering is offline and deterministic: the output profile is fixed to `1920x1080 @ 60fps`, with CRF 18 and the `veryfast` encoder preset applied internally.
-
-Pipeline:
-
-- Captures the chart camera output to a dedicated `RenderTexture`.
-- Reads frames with `AsyncGPUReadback` to avoid the old blocking CPU readback path.
-- Streams raw RGBA frames directly into FFmpeg instead of writing PNG sequences.
-- Prefers hardware H.264 encoding when FFmpeg can use it, then falls back to software encoding.
-- Builds the final audio mix from the song plus captured gameplay sounds, including hitsounds, hold loops, and scheduled sound events.
-- Suppresses UI/menu sounds during rendering so UMM clicks and interface audio are not exported.
-- Stops after the level reaches the end, then records a configurable tail duration. The default tail is 5 seconds.
-
-Renderer controls:
-
-- Workspace directory for temporary files.
-- Export directory for final MP4 files.
-- End-of-level tail duration.
-- Whether hit judgment labels such as Perfect, early, and late are visible during export.
-
-The renderer requires FFmpeg at `Tools/ffmpeg.exe` inside the deployed mod folder. The build target downloads it automatically when `tools/ffmpeg.exe` is missing from the repository checkout, so the binary does not need to be committed.
-
-Files:
-
-- `src/Features/ChartRendering/ChartRenderSession.cs`
-- `src/Features/ChartRendering/ChartFrameCapture.cs`
-- `src/Features/ChartRendering/ChartRenderAudioMix.cs`
-- `src/Features/ChartRendering/ChartRenderAudioPatches.cs`
-- `src/Features/ChartRendering/ChartRenderJudgmentPatches.cs`
-- `src/Features/ChartRendering/FfmpegEncoder.cs`
-- `scripts/EnsureFfmpeg.ps1`
-
-### Editor Preferences Persistence
-
-Persists official editor preferences immediately after a preference control changes. This avoids preference changes being lost when the game/editor does not save them at the expected time.
-
-File:
-
-- `src/Features/EditorPreferences/EditorPreferencesPersistencePatches.cs`
-
-### In-Editor Quick Settings Overlay
-
-Adds a draggable IMGUI overlay while editing a level. It provides quick access to the most frequently tuned values without opening the UMM settings panel.
-
-The overlay includes:
-
-- Decoration move snap step
-- Float drag step per pixel
-- Int drag step per pixel
-- Maximum float decimals
-- Chart renderer status and render button
-- Hit judgment visibility toggle for video exports
-
-The overlay remembers:
-
-- Position
-- Collapsed/expanded state
-
-While rendering, the overlay shows a modal progress panel with written frames, output speed, duplicated-frame count, ETA, current stage, and a cancel button.
-
-File:
-
-- `src/Features/EditorOverlay/EditorTweaksOverlayWindow.cs`
-
-### UMM Settings Panel
-
-The UnityModManager settings panel exposes feature toggles, numeric editor settings, and chart renderer directories. Text input fields keep intermediate edit states, so values can be cleared or partially typed without being reformatted every frame.
-
-Chart render width, height, FPS, CRF, and preset are intentionally fixed by the mod to the default `1920x1080 @ 60fps` profile. Users only configure where files are written and how the render behaves.
-
-File:
-
-- `src/Settings.cs`
-
-### Localization
-
-User-facing strings are stored in JSON instead of hardcoded switches.
-
-File:
-
-- `Resources/localization.json`
-
-Runtime loader:
-
-- `src/Localization.cs`
-
-The loader chooses Chinese text when the game language is Chinese, Chinese Simplified, or Chinese Traditional. Otherwise it falls back to English. Missing keys fall back to the key name.
-
-## Project Layout
+## 项目结构
 
 ```text
 .
 ├── ADOFAI.EditorTweaks.csproj
-├── ADOFAI.EditorTweaks.slnx
 ├── ADOFAIMod.targets
 ├── Info.json
-├── scripts/
-│   └── EnsureFfmpeg.ps1
-├── tools/
-│   └── ffmpeg.exe        # downloaded locally, ignored by git
+├── README.md
+├── Doc/
+│   ├── Architecture.md
+│   ├── PatchInventory.md
+│   ├── ChartRendering.md
+│   ├── DecorationSelection.md
+│   ├── EditorOverlay.md
+│   ├── EditorPreferences.md
+│   ├── NumericDrag.md
+│   ├── SettingsAndLocalization.md
+│   └── VideoBackgroundSync.md
 ├── Resources/
 │   └── localization.json
+├── scripts/
+│   └── EnsureFfmpeg.ps1
 └── src/
     ├── Main.cs
     ├── Settings.cs
@@ -191,69 +49,383 @@ The loader chooses Chinese text when the game language is Chinese, Chinese Simpl
         └── VideoBackgroundSync/
 ```
 
-## Build
+## 运行入口
 
-The project expects a local ADOFAI installation so it can reference the game's managed assemblies.
+UnityModManager 加载 `ADOFAI.EditorTweaks.Main.Load`。
 
-Default path in the project file:
+`Main.Load` 做三件事：
+
+1. 加载 `Resources/localization.json`。
+2. 加载并补全 `Settings` 默认值。
+3. 注册 UMM 回调：`OnToggle`、`OnGUI`、`OnSaveGUI`。
+
+启用 Mod 时：
+
+- `Harmony.PatchAll(Assembly.GetExecutingAssembly())` 应用所有 Patch。
+- `EditorTweaksOverlayWindow.Ensure()` 创建一个 `DontDestroyOnLoad` 的 IMGUI 浮窗宿主。
+
+禁用 Mod 时：
+
+- `Harmony.UnpatchAll(modEntry.Info.Id)` 移除本 Mod 的 Patch。
+- `EditorTweaksOverlayWindow.Destroy()` 销毁浮窗宿主并清理鼠标捕获状态。
+
+## 功能总览
+
+### 数值输入框右键拖动
+
+官方编辑器里很多数字输入框只能点进去手输。Mod 会在 `PropertyControl_Text.Setup` 和 `PropertyControl_Vector2.Setup` 后，把游戏已有的 `DraggableNumberInputField` 组件挂到支持的 TMP 输入框上。
+
+支持：
+
+- `Int`
+- `Float`
+- `Tile`
+- `Vector2`
+
+交互方式是右键按住横向拖动。拖动时实时写回当前选中的 `LevelEvent`，并刷新装饰、背景、滑条、地板事件指示器等编辑器状态。松开后调用官方输入框的 `onEndEdit`，让官方保存逻辑继续执行。
+
+关键 Patch：
+
+- `PropertyControl_Text.Setup`：Postfix 附加拖动组件。
+- `PropertyControl_Vector2.Setup`：Postfix 分别给 X/Y 输入框附加拖动组件。
+- `DraggableNumberInputField.OnPointerDown`：Prefix 接管本 Mod 创建的拖动字段，只允许右键开始拖动。
+- `DraggableNumberInputField.OnPointerUp`：Prefix 在拖动结束时提交值。
+- `DraggableNumberInputField.SetArrowsVisible`：Prefix 避免官方组件在没有箭头对象时访问空数组。
+
+详见 [Doc/NumericDrag.md](Doc/NumericDrag.md)。
+
+### 装饰选择与拖动修复
+
+这一组修复集中在 `src/Features/DecorationSelection`。
+
+Camera / CameraAspect 相对装饰的原版拖动容易把屏幕空间和世界空间混在一起。Mod 在拖动开始时记录装饰数据坐标，拖动过程中按相机正交尺寸和宽高比计算屏幕空间增量，再写回 `LevelEvent["position"]`。
+
+此外还修复：
+
+- Shift 轴锁定在修复路径中继续有效。
+- Camera / CameraAspect 装饰的轴心十字跟随实际屏幕位置。
+- 拖动后按配置的步进吸附坐标。
+
+关键 Patch：
+
+- `scnEditor.DragDecorationsStart`：Postfix 修正拖动起点缓存。
+- `scnEditor.DragDecorations`：Prefix 接管包含 Camera / CameraAspect 装饰的拖动。
+- `scnEditor.DragDecorations`：Postfix 对最终坐标做吸附。
+- `DecorationPivot.UpdatePivotCrossImage`：Prefix 直接把轴心十字放到装饰 Transform 位置。
+- `scrDecoration.UpdateScreenClamp`：Postfix 修正屏幕相对装饰的 `scrParallax` 屏幕坐标。
+- `scrParallax.SetTrans`：Postfix 在视差变换后刷新轴心十字。
+
+详见 [Doc/DecorationSelection.md](Doc/DecorationSelection.md)。
+
+### 视频背景同步修复
+
+官方视频背景启动逻辑会在 `VideoPlayer.Prepare()` 结束后设置一次 `VideoPlayer.time`。从 checkpoint 或编辑器选中地板开始播放时，长视频随机 seek 可能慢半拍，最终表现为视频背景落后或漂移。
+
+Mod 在 `scrVfxPlus.Update` 后持续检查一段启动窗口，目标时间使用官方时间模型：
 
 ```text
-C:\Steam\steamapps\common\A Dance of Fire and Ice\A Dance of Fire and Ice.exe
+songposition_minusi - countdownOffset + vidOffset
 ```
 
-Build with:
+循环视频会按视频长度取模，非循环视频会 clamp 到视频末尾之前。
+
+关键 Patch：
+
+- `scrVfxPlus.Reset`：Postfix 清理每个 VFX 实例的同步状态。
+- `scrVfxPlus.Update`：Postfix 根据谱面时间校正 `VideoPlayer.time` 和 `playbackSpeed`。
+
+详见 [Doc/VideoBackgroundSync.md](Doc/VideoBackgroundSync.md)。
+
+### 编辑器偏好设置即时保存
+
+官方编辑器偏好有时只改了内存状态，没有立刻写入持久化配置。Mod 在偏好项通知变化后调用 `Persistence.generalPrefs.Save()`。
+
+关键 Patch：
+
+- `EditorPreferencesEntry.NotifyChange`：Postfix 保存官方 general preferences。
+
+详见 [Doc/EditorPreferences.md](Doc/EditorPreferences.md)。
+
+### 编辑器内快捷设置浮窗
+
+浮窗是一个 IMGUI `MonoBehaviour`，由 `EditorTweaksOverlayWindow` 创建并常驻。显示条件：
+
+- 正在编辑谱面。
+- 当前场景有可渲染关卡。
+- 正在渲染。
+
+浮窗提供：
+
+- 装饰移动吸附精度。
+- 小数拖动步进。
+- 整数拖动步进。
+- 小数最大位数。
+- 当前渲染规格展示。
+- 判定文字显示开关。
+- 渲染按钮和渲染进度模态窗口。
+
+为了避免点击浮窗时误点到编辑器或游戏背景，Mod 增加了输入遮罩 Patch。普通浮窗只拦鼠标活动；渲染进度窗按模态窗口处理，会拦编辑器输入、Unity UI 输入、玩家按键和暂停，但不会阻止 `scrController.Update` 继续执行，因为渲染本身依赖控制器更新推进。
+
+关键 Patch：
+
+- `scnEditor.Update`：Prefix 在浮窗/渲染窗口需要拦截时跳过编辑器输入更新。
+- `scnEditor.ZoomCamera`：Prefix 防止鼠标滚轮穿透导致缩放。
+- `scrController.Update`：Prefix 只在普通浮窗鼠标操作时拦截，渲染时不拦控制器更新。
+- `scrController.TogglePauseGame`：Prefix 渲染时阻止用户按键暂停。
+- `scrPlayerManager.AnyValidInputWasTriggered`：Prefix 渲染时阻止玩家输入。
+- `scrPlayer.ValidInputWasTriggered`：Prefix 渲染时返回 false。
+- `scrPlayer.ValidInputWasReleased`：Prefix 渲染时返回 false。
+- `scrPlayer.CountValidKeysPressed`：Prefix 渲染时返回 0。
+- `StandaloneInputModule.Process`：Prefix 阻止 Unity UI 背景响应鼠标。
+
+详见 [Doc/EditorOverlay.md](Doc/EditorOverlay.md)。
+
+## 离线谱面视频渲染
+
+这是当前 Mod 最大的功能。目标是直接从游戏场景导出 MP4，而不是录屏、不是录编辑器 UI。
+
+### 支持场景
+
+渲染入口在浮窗里。可渲染条件由 `ChartRenderSession.IsPlayableLevelLoaded()` 判断：
+
+- 编辑器中加载的自定义谱面。
+- `scnGame` 自定义关卡场景。
+- 官谱和旧官谱直场景，只要 `ADOBase.controller.gameworld` 存在且 `ADOBase.lm.listFloors` 可用。
+
+编辑器渲染使用 `scnEditor.Play()` 走官方编辑器播放路径；游戏场景渲染使用控制器、conductor 和 level maker 当前状态启动或接管播放。
+
+### 渲染流程
+
+`ChartRenderSession.Run()` 是主协程，核心流程如下：
+
+1. `TryPrepare()` 创建工作目录、导出目录、临时视频路径、临时音频路径和 `render.log`。
+2. `TryStartPlayback()` 保存旧状态，设置 `Time.captureFramerate`、关闭 vSync、提高 `Application.targetFrameRate`。
+3. 编辑器环境调用 `StartEditorPlayback()`：选择第 0 块，重置 checkpoint，调用 `editor.Play()`，然后打开 `RDC.auto`。
+4. 游戏环境调用 `StartGameScenePlayback()`：必要时停止等待开始协程、隐藏 Press To Start、rewind conductor、`Start_Rewind()`，并对自定义关卡调用 `FinishCustomLevelLoading()`。
+5. 等待 `ADOBase.conductor` 确认播放已经 schedule。
+6. `BeginForcedVisualClock()` 锚定视觉时钟。
+7. 创建 `ChartFrameCapture`，把官方相机链输出到专用 `RenderTexture`。
+8. 创建 `ChartUnityAudioCapture`，使用 Unity `AudioRenderer` 离线捕获音频。
+9. 创建 `FfmpegEncoder`，把 raw RGBA 帧 pipe 给 FFmpeg。
+10. 每一帧等待 `WaitForEndOfFrame()`，捕获音频，提交 GPU readback，推进强制视觉时间。
+11. 检测到谱面结束后继续录制尾巴秒数。
+12. 完成视频编码，再把 WAV 音频 mux 成最终 MP4。
+13. 恢复编辑器、`RDC.auto`、checkpoint、`Time.captureFramerate`、`Application.targetFrameRate` 和 vSync。
+
+### 为什么要做强制视觉时钟
+
+ADOFAI 的视觉逻辑大量依赖 `scrConductor.songposition_minusi`。离线渲染时，Unity 的真实执行速度和输出帧率不是同一个东西：机器慢一点只是等待时间变长，成品仍应该是严格 60fps 或用户设置的 fps。
+
+如果只设置 `Time.captureFramerate`，仍可能遇到两个问题：
+
+- 新版官方 `scrConductor` / 输入校准逻辑会把输入偏移、实际音频时间、异步输入角度修正揉进视觉时间。
+- 自动打击如果某帧落后，会出现连续追块、球突然跳过多个砖块，视频里看起来就是球抽搐或乱飘。
+
+当前修复由三块组成：
+
+1. `ChartRenderVisualClock` 在播放真正开始后记录当时的 `songposition_minusi`，然后每个输出帧把视觉时间设为 `startSongPosition + frameIndex / fps * pitch`。
+2. Patch `scrConductor.set_songposition_minusi`，渲染期间无论游戏内部要写什么值，都替换为强制帧时间。
+3. Patch `scrConductor.get_calibration_i`，渲染期间返回 `0`，避免玩家输入偏移影响视觉相位。音频本身由 Unity 音频渲染输出，不需要把玩家输入偏移叠到画面上。
+
+这就是之前“球抽搐”和“视觉时间轴起点与音频起点有很小相位差”的核心修复点。不要再按旧版兼容方式去改 `scrConductor` 旧逻辑；当前代码按新版游戏的 `scrPlayerManager` / `scrPlayer` / `scrConductor` 写。
+
+### 自动打击与球抽搐防线
+
+`ChartRenderAutoPlayer` 在 `scrConductor.Update` 的 Postfix 执行。它读取当前玩家、当前地板、下一块地板的 `entryTime`，只要强制视觉时间已经到达下一块，就调用 `scrPlayer.Hit(isAuto: true)` 补打。
+
+为了避免异常追块：
+
+- 每帧最多自动命中 16 次，超过会写入 `AUTO_HIT_GUARD_REACHED`。
+- 打击前刷新当前 chosen planet 角度。
+- 打击前把非 midspin 的球角度对齐到 `targetExitAngle`。
+- 清理 multipress 相关状态，避免自动播放被多押惩罚影响。
+- Patch `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)`，渲染时直接跳过异步输入角度修正，并计入诊断日志。
+
+相关 Patch：
+
+- `scrConductor.Update`：Postfix 自动补打。
+- `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)`：Prefix 渲染时 suppress。
+- `scrConductor.set_songposition_minusi`：Prefix 强制视觉时间。
+- `scrConductor.get_calibration_i`：Prefix 渲染时去掉输入偏移。
+
+### 画面捕获
+
+`ChartFrameCapture` 使用官方 `scrCamera` 的相机链，而不是自己新建一个相机：
+
+- `scrCamera.Bgcamstatic`
+- `scrCamera.BGcam`
+- `scrCamera.camobj`
+
+三台相机的 `targetTexture` 被临时指向同一个 `RenderTexture`。同时打开 `Overlaycam` 和 `quad`，并把 `quad` 的材质主纹理替换为捕获目标，保持官方相机合成链一致。这样官谱、旧官谱场景、滤镜、背景和视频背景都更接近游戏内实际画面。
+
+捕获使用 `AsyncGPUReadback.Request(captureTarget, 0, TextureFormat.RGBA32)`。返回数据写入复用的 byte buffer，然后交给 FFmpeg writer 线程。
+
+### 音频捕获与合成
+
+旧设计曾考虑手工混合原曲和各种音效，但更稳定的方式是直接使用 Unity 的离线音频渲染：
+
+- `AudioRenderer.Start()`
+- 每帧 `AudioRenderer.GetSampleCountForCaptureFrame()`
+- `AudioRenderer.Render(samples)`
+- 写入 float32 WAV
+- 视频完成后由 FFmpeg mux 成 AAC
+
+这样原曲、打击音、长按音效、`PlaySound`、视频背景相关音频等只要走 Unity mixer，就会以游戏实际播放结果进入 WAV。为了避免 UMM 和菜单点击声进入成品，Patch 了 `scrSfx.PlaySfx(AudioClip, MixerGroup.InterfaceParent, ...)`，渲染期间对 InterfaceParent 组直接返回原 clip，不实际播放。
+
+关键 Patch：
+
+- `scrSfx.PlaySfx(AudioClip, MixerGroup, float, float, float)`：Prefix 渲染时屏蔽 InterfaceParent。
+
+### FFmpeg 编码
+
+`FfmpegEncoder` 使用两阶段输出：
+
+1. raw RGBA 帧进入临时无音频 MP4。
+2. WAV 音频和临时 MP4 mux 成最终 MP4。
+
+视频参数：
+
+- 输入：`-f rawvideo -pixel_format rgba -video_size WxH -framerate FPS -i -`
+- 翻转：`-vf vflip`，因为 Unity readback 坐标和视频坐标上下相反。
+- 像素格式：`yuv420p`，保证常见播放器和网站兼容。
+- 优先 `h264_nvenc`，探测失败或设置强制 CPU 时使用 `libx264`。
+- NVENC 使用 `constqp`，QP 来自 CRF 设置。
+- CPU 编码可用 `cpu`、`x264` 或 `x264:<preset>` 强制。
+
+### 诊断日志
+
+每次渲染会在工作区 `CurrentRender/render.log` 写日志。它记录：
+
+- 渲染开始时间。
+- 相机链名称和 depth。
+- 当前场景、关卡名、是否 `scnGame`。
+- 视觉时钟锚点、pitch、addoffset、被抑制的 input offset。
+- 自动打击次数、失败次数、跳块次数。
+- 异步角度修正被 suppress 的次数。
+- FFmpeg mux 参数和失败输出。
+
+排查球抽搐时重点看：
+
+- `SONG_MOVED_BACKWARD`
+- `PLAYER_FAILED`
+- `AUTO_HIT ... FLOOR_JUMP`
+- `AUTO_HIT_GUARD_REACHED`
+- `suppressedAsyncAdjusts`
+
+如果 `autoHits` 正常、`failedAutoHits=0`、`floorJumps=0`，基本可以认为自动播放和视觉时钟没有异常。
+
+## Patch 总表
+
+完整说明见 [Doc/PatchInventory.md](Doc/PatchInventory.md)。这里列出全部 Harmony Patch：
+
+| 模块 | 目标方法 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| NumericDrag | `PropertyControl_Text.Setup` | Postfix | 给数字输入框附加拖动组件 |
+| NumericDrag | `PropertyControl_Vector2.Setup` | Postfix | 给 Vector2 的 X/Y 输入框附加拖动组件 |
+| NumericDrag | `DraggableNumberInputField.OnPointerDown` | Prefix | 接管右键拖动开始 |
+| NumericDrag | `DraggableNumberInputField.OnPointerUp` | Prefix | 拖动结束后提交 |
+| NumericDrag | `DraggableNumberInputField.SetArrowsVisible` | Prefix | 防空箭头数组 |
+| DecorationSelection | `scnEditor.DragDecorationsStart` | Postfix | 修正 Camera 相对装饰拖动起点 |
+| DecorationSelection | `scnEditor.DragDecorations` | Prefix | 接管 Camera / CameraAspect 装饰拖动 |
+| DecorationSelection | `scnEditor.DragDecorations` | Postfix | 吸附装饰坐标 |
+| DecorationSelection | `DecorationPivot.UpdatePivotCrossImage` | Prefix | 修正装饰轴心十字 |
+| DecorationSelection | `scrDecoration.UpdateScreenClamp` | Postfix | 修正屏幕相对坐标 |
+| DecorationSelection | `scrParallax.SetTrans` | Postfix | 视差更新后刷新轴心 |
+| VideoBackgroundSync | `scrVfxPlus.Reset` | Postfix | 清理视频同步状态 |
+| VideoBackgroundSync | `scrVfxPlus.Update` | Postfix | 追踪并校正视频背景时间 |
+| EditorPreferences | `EditorPreferencesEntry.NotifyChange` | Postfix | 立即保存官方偏好 |
+| EditorOverlay | `scnEditor.Update` | Prefix | 浮窗/渲染窗拦截编辑器输入 |
+| EditorOverlay | `scnEditor.ZoomCamera` | Prefix | 防止滚轮穿透缩放 |
+| EditorOverlay | `scrController.Update` | Prefix | 普通浮窗鼠标操作时防穿透 |
+| EditorOverlay | `scrController.TogglePauseGame` | Prefix | 渲染时阻止暂停 |
+| EditorOverlay | `scrPlayerManager.AnyValidInputWasTriggered` | Prefix | 渲染时屏蔽玩家输入 |
+| EditorOverlay | `scrPlayer.ValidInputWasTriggered` | Prefix | 渲染时屏蔽按下 |
+| EditorOverlay | `scrPlayer.ValidInputWasReleased` | Prefix | 渲染时屏蔽松开 |
+| EditorOverlay | `scrPlayer.CountValidKeysPressed` | Prefix | 渲染时按键数为 0 |
+| EditorOverlay | `StandaloneInputModule.Process` | Prefix | 阻止 Unity UI 背景点击 |
+| ChartRendering | `scrConductor.set_songposition_minusi` | Prefix | 强制离线视觉时钟 |
+| ChartRendering | `scrConductor.get_calibration_i` | Prefix | 渲染时去掉输入偏移 |
+| ChartRendering | `scrConductor.Update` | Postfix | 自动补打到当前帧 |
+| ChartRendering | `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)` | Prefix | 防止异步输入角度修正造成跳动 |
+| ChartRendering | `scrSfx.PlaySfx(AudioClip, MixerGroup, float, float, float)` | Prefix | 屏蔽界面音进入渲染音频 |
+| ChartRendering | `scrHitTextManager.ShowHitText` | Prefix | 控制导出时是否显示判定文字 |
+
+## 设置
+
+UMM 设置面板分成基础设置和高级设置。修改后会保存，渲染相关设置下一次渲染立即生效。
+
+基础渲染设置：
+
+- 导出目录。
+- 视频宽度。
+- 视频高度。
+- 帧率。
+- 谱面结束后额外录制秒数。
+- 是否显示判定文字。
+- 一键恢复渲染默认。
+
+高级渲染设置默认隐藏：
+
+- 工作区目录。
+- 画质参数 CRF / QP。
+- 编码方式。
+
+默认推荐是 `1920x1080 @ 60fps`，优先 GPU 硬编码。每个渲染设置都有独立重置按钮，也有一键恢复默认。
+
+## 构建与部署
+
+项目目标框架是 `net481`，通过游戏 managed assemblies 编译。当前项目文件里的默认游戏路径是：
+
+```text
+D:\Steam\steamapps\common\A Dance of Fire and Ice\A Dance of Fire and Ice.exe
+```
+
+构建：
 
 ```powershell
 dotnet build
 ```
 
-`ADOFAIMod.targets` performs these steps after build:
+`ADOFAIMod.targets` 会：
 
-- Downloads FFmpeg from the Gyan.dev release archive when `tools/ffmpeg.exe` is missing.
-- Copies the DLL and `Info.json` to `out/`.
-- Copies `Resources/**` to `out/Resources/`.
-- Copies `tools/ffmpeg.exe` to `out/Tools/ffmpeg.exe`.
-- Deploys the mod to the game's `Mods/ADOFAI.EditorTweaks/` directory.
-- Does not launch the game unless `AutoLaunchGame` is set to `true`.
+- 验证 `GameExePath`。
+- 如果 `tools/ffmpeg.exe` 不存在，则运行 `scripts/EnsureFfmpeg.ps1` 下载 FFmpeg。
+- 复制 DLL、`Info.json`、`Resources`、`Tools` 到 `out/`。
+- 部署到游戏目录 `Mods/ADOFAI.EditorTweaks/`。
+- `AutoLaunchGame=false` 时不自动启动游戏。
 
-`tools/ffmpeg.exe` is intentionally ignored by git because it is large. Keep the script and build target in source control, not the binary.
+`tools/ffmpeg.exe` 不应提交到 git。
 
-## Runtime Entry
+## 开发注意事项
 
-UnityModManager loads:
+- 新功能优先放在 `src/Features/<FeatureName>/`。
+- Harmony Patch 尽量小而明确，Patch 表必须同步更新。
+- 用户可见文本放进 `Resources/localization.json`。
+- 新增设置要同步更新 `Settings.cs`、UMM UI、浮窗 UI 和文档。
+- 修改渲染时必须同时考虑：视觉时钟、自动打击、音频捕获、FFmpeg、输入遮罩、取消恢复和诊断日志。
+- 不要为旧版 ADOFAI 保留复杂兼容分支。当前 Mod 按新版官方源码和新版 `scrPlayerManager` / `scrPlayer` / `scrConductor` 行为实现。
+- 如果再次出现球抽搐，先看 `render.log`，不要先回滚视觉时钟或自动打击逻辑。
 
-```text
-ADOFAI.EditorTweaks.Main.Load
-```
+## 验证清单
 
-`Main.Load` initializes settings, localization, UMM callbacks, and the Harmony instance. Patches are applied when the mod is enabled and removed when disabled.
-
-## Development Notes
-
-- Keep feature-specific Harmony patches under `src/Features/<FeatureName>/`.
-- Prefer small patches that preserve the base game's behavior and only adjust the broken or missing part.
-- Store user-facing text in `Resources/localization.json`.
-- When adding a setting, update `Settings.cs`, `Resources/localization.json`, and any relevant overlay/UI code.
-- When touching chart rendering, check the render session, overlay, audio mix, FFmpeg command, and localization together. Those pieces are tightly connected.
-- The project enables nullable reference types, so new code should keep null handling explicit.
-
-## Verification
-
-At minimum, run:
+至少运行：
 
 ```powershell
 dotnet build
 ```
 
-Manual checks worth doing in-game:
+建议在游戏中检查：
 
-- Open the UMM settings panel and verify localized labels display correctly.
-- Open a custom level in the editor and confirm the quick settings overlay appears.
-- Drag numeric fields in the event inspector.
-- Drag camera-relative decorations.
-- Start playback from the middle of a chart with a video background and confirm video/audio sync.
-- Load a custom chart, render a video, and confirm the MP4 is `1920x1080 @ 60fps`.
-- Confirm the exported video does not include the UMM panel, editor UI, render modal, or menu sounds.
-- Toggle hit judgments off and confirm Perfect/early/late labels are hidden only during export.
-- Confirm the render continues for the configured tail duration after the level ends.
-- Confirm song audio, hitsounds, hold sounds, and `PlaySound` events stay aligned with the video.
+- UMM 设置面板文本、本地化和重置按钮正常。
+- 编辑器内浮窗可拖动、可折叠，点击不穿透。
+- 渲染进度窗出现时，背景不能点击、滚轮不能缩放、键盘不能暂停或触发游戏输入。
+- 点击取消后，编辑器能自动回到编辑模式。
+- 数值输入框可右键拖动，拖动时实时刷新。
+- Camera / CameraAspect 装饰拖动符合屏幕空间直觉。
+- 装饰吸附值为 `0` 时关闭吸附。
+- 从中途播放带视频背景的谱面，视频背景不明显延迟。
+- 自定义谱面、官谱、`scnGame` 场景都能开始渲染。
+- 渲染成品不包含编辑器 UI、UMM UI、进度窗或菜单音效。
+- 成品分辨率、帧率、尾巴秒数符合设置。
+- 音频和画面对齐，结尾不被切掉。
+- `render.log` 里没有 `PLAYER_FAILED`、异常 `FLOOR_JUMP` 或 FFmpeg 错误。
