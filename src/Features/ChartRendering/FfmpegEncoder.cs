@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -20,12 +21,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly int fps;
         private readonly int crf;
         private readonly string preset;
+        private readonly float audioSyncOffsetMs;
         private Process? process;
         private BlockingCollection<QueuedFrame>? frameQueue;
         private Thread? writerThread;
         private Exception? writerException;
 
-        public FfmpegEncoder(string ffmpegPath, string tempVideoPath, string finalVideoPath, int width, int height, int fps, int crf, string preset)
+        public FfmpegEncoder(string ffmpegPath, string tempVideoPath, string finalVideoPath, int width, int height, int fps, int crf, string preset, float audioSyncOffsetMs)
         {
             this.ffmpegPath = ffmpegPath;
             this.tempVideoPath = tempVideoPath;
@@ -35,6 +37,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.fps = fps;
             this.crf = crf;
             this.preset = string.IsNullOrWhiteSpace(preset) ? "veryfast" : preset.Trim();
+            this.audioSyncOffsetMs = audioSyncOffsetMs;
         }
 
         public string EncoderName { get; private set; } = "unknown";
@@ -111,13 +114,33 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             long videoBytes = File.Exists(tempVideoPath) ? new FileInfo(tempVideoPath).Length : 0L;
             long audioBytes = new FileInfo(audioPath).Length;
-            ChartRenderDiagnostics.Log("Muxing captured audio. videoBytes=" + videoBytes + " audioBytes=" + audioBytes);
+            ChartRenderDiagnostics.Log("Muxing captured audio. videoBytes=" + videoBytes + " audioBytes=" + audioBytes + " audioSyncOffsetMs=" + Number(audioSyncOffsetMs));
 
-            string args = "-y -i " + Quote(tempVideoPath) + " "
-                + "-i " + Quote(audioPath) + " "
-                + "-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 320k -ac 2 -movflags +faststart "
-                + Quote(finalVideoPath);
+            string args = BuildMuxArguments(audioPath);
             RunMuxProcess(args);
+        }
+
+        private string BuildMuxArguments(string audioPath)
+        {
+            string baseInputs = "-y -i " + Quote(tempVideoPath) + " -i " + Quote(audioPath) + " ";
+            string outputArgs = "-c:v copy -c:a aac -b:a 320k -ac 2 -movflags +faststart " + Quote(finalVideoPath);
+            if (Math.Abs(audioSyncOffsetMs) < 0.001f)
+            {
+                return baseInputs + "-map 0:v:0 -map 1:a:0 " + outputArgs;
+            }
+
+            string filter;
+            if (audioSyncOffsetMs > 0f)
+            {
+                filter = "[1:a]atrim=start=" + Number(audioSyncOffsetMs * 0.001f) + ",asetpts=PTS-STARTPTS[a]";
+            }
+            else
+            {
+                int delayMs = Math.Max(0, (int)Math.Round(Math.Abs(audioSyncOffsetMs)));
+                filter = "[1:a]adelay=" + delayMs.ToString(CultureInfo.InvariantCulture) + ":all=1,asetpts=PTS-STARTPTS[a]";
+            }
+
+            return baseInputs + "-filter_complex " + Quote(filter) + " -map 0:v:0 -map " + Quote("[a]") + " " + outputArgs;
         }
 
         public void Dispose()
@@ -394,6 +417,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private static string Quote(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
+        }
+
+        private static string Number(double value)
+        {
+            return double.IsNaN(value) || double.IsInfinity(value)
+                ? value.ToString(CultureInfo.InvariantCulture)
+                : value.ToString("0.######", CultureInfo.InvariantCulture);
         }
     }
 }

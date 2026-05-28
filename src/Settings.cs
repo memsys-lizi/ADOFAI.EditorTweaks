@@ -19,6 +19,9 @@ namespace ADOFAI.EditorTweaks
         private const int DefaultChartRenderFps = 60;
         private const int DefaultChartRenderCrf = 18;
         private const float DefaultChartRenderCompletionTailSeconds = 5f;
+        private const float DefaultChartRenderAudioSyncOffsetMs = 0f;
+        private const float MinChartRenderAudioSyncOffsetMs = -5000f;
+        private const float MaxChartRenderAudioSyncOffsetMs = 5000f;
         private const bool DefaultChartRenderShowHitJudgments = true;
         private const bool DefaultChartRenderAdvancedSettingsExpanded = false;
         private const string DefaultChartRenderPreset = "veryfast";
@@ -65,6 +68,8 @@ namespace ADOFAI.EditorTweaks
 
         public float ChartRenderCompletionTailSeconds = 5f;
 
+        public float ChartRenderAudioSyncOffsetMs = 0f;
+
         public bool ChartRenderShowHitJudgments = true;
 
         public bool ChartRenderAdvancedSettingsExpanded = false;
@@ -103,6 +108,8 @@ namespace ADOFAI.EditorTweaks
 
         private string renderTailSecondsText = string.Empty;
 
+        private string renderAudioSyncOffsetText = string.Empty;
+
         private bool textFieldsInitialized;
 
         public void OnGUI(UnityModManager.ModEntry modEntry)
@@ -116,6 +123,7 @@ namespace ADOFAI.EditorTweaks
             int oldRenderCrf = ChartRenderCrf;
             string oldRenderPreset = ChartRenderPreset;
             float oldRenderTail = ChartRenderCompletionTailSeconds;
+            float oldRenderAudioSyncOffset = ChartRenderAudioSyncOffsetMs;
             bool oldRenderJudgments = ChartRenderShowHitJudgments;
             bool oldAdvancedSettingsExpanded = ChartRenderAdvancedSettingsExpanded;
             string oldWorkspaceDirectory = ChartRenderWorkspaceDirectory;
@@ -172,6 +180,7 @@ namespace ADOFAI.EditorTweaks
                 ChartRenderWorkspaceDirectory = DrawTextSettingRow(Text("chartRenderWorkspaceDirectory"), Text("chartRenderWorkspaceDirectoryHint"), ChartRenderWorkspaceDirectory, GetDefaultWorkspaceDirectory(modEntry));
                 ChartRenderCrf = DrawIntSettingRow(Text("chartRenderCrf"), Text("chartRenderCrfHint"), ChartRenderCrf, ref renderCrfText, MinChartRenderCrf, MaxChartRenderCrf, DefaultChartRenderCrf);
                 ChartRenderPreset = DrawStringSettingRow(Text("chartRenderPreset"), Text("chartRenderPresetHint"), ChartRenderPreset, ref renderPresetText, DefaultChartRenderPreset);
+                ChartRenderAudioSyncOffsetMs = DrawFloatSettingRow(Text("chartRenderAudioSyncOffsetMs"), Text("chartRenderAudioSyncOffsetMsHint"), ChartRenderAudioSyncOffsetMs, ref renderAudioSyncOffsetText, MinChartRenderAudioSyncOffsetMs, DefaultChartRenderAudioSyncOffsetMs);
             }
 
             GUILayout.Space(2);
@@ -184,6 +193,7 @@ namespace ADOFAI.EditorTweaks
                 || oldRenderCrf != ChartRenderCrf
                 || oldRenderPreset != ChartRenderPreset
                 || oldRenderTail != ChartRenderCompletionTailSeconds
+                || oldRenderAudioSyncOffset != ChartRenderAudioSyncOffsetMs
                 || oldRenderJudgments != ChartRenderShowHitJudgments
                 || oldAdvancedSettingsExpanded != ChartRenderAdvancedSettingsExpanded
                 || oldWorkspaceDirectory != ChartRenderWorkspaceDirectory
@@ -210,6 +220,7 @@ namespace ADOFAI.EditorTweaks
             renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
             renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
+            renderAudioSyncOffsetText = FormatFloat(ChartRenderAudioSyncOffsetMs);
             textFieldsInitialized = true;
         }
 
@@ -474,6 +485,7 @@ namespace ADOFAI.EditorTweaks
                 ? DefaultChartRenderPreset
                 : ChartRenderPreset.Trim();
             ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
+            ChartRenderAudioSyncOffsetMs = Mathf.Clamp(ChartRenderAudioSyncOffsetMs, MinChartRenderAudioSyncOffsetMs, MaxChartRenderAudioSyncOffsetMs);
         }
 
         private static int MakeEven(int value)
@@ -491,6 +503,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderCrf = DefaultChartRenderCrf;
             ChartRenderPreset = DefaultChartRenderPreset;
             ChartRenderCompletionTailSeconds = DefaultChartRenderCompletionTailSeconds;
+            ChartRenderAudioSyncOffsetMs = DefaultChartRenderAudioSyncOffsetMs;
             ChartRenderShowHitJudgments = DefaultChartRenderShowHitJudgments;
             ChartRenderAdvancedSettingsExpanded = DefaultChartRenderAdvancedSettingsExpanded;
             SyncChartRenderTextFields();
@@ -504,6 +517,7 @@ namespace ADOFAI.EditorTweaks
             renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
             renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
+            renderAudioSyncOffsetText = FormatFloat(ChartRenderAudioSyncOffsetMs);
         }
 
         private static string GetDefaultWorkspaceDirectory(UnityModManager.ModEntry modEntry)

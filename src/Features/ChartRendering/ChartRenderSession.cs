@@ -194,7 +194,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 frameCapture = new ChartFrameCapture(settings.ChartRenderWidth, settings.ChartRenderHeight);
                 audioCapture = new ChartUnityAudioCapture(capturedAudioPath);
                 audioCapture.Begin();
-                encoder = new FfmpegEncoder(ChartRenderPaths.GetFfmpegPath(), tempVideoPath, outputPath, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps, settings.ChartRenderCrf, settings.ChartRenderPreset);
+                encoder = new FfmpegEncoder(ChartRenderPaths.GetFfmpegPath(), tempVideoPath, outputPath, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps, settings.ChartRenderCrf, settings.ChartRenderPreset, settings.ChartRenderAudioSyncOffsetMs);
                 encoder.BeginVideo();
                 EncoderName = encoder.EncoderName;
                 BeginForcedVisualClock();

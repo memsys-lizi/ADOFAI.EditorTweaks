@@ -161,6 +161,16 @@
       "zh": "默认会优先使用 GPU 硬编码。只有 GPU 编码出问题时才建议填 cpu。"
     },
     {
+      "key": "chartRenderAudioSyncOffsetMs",
+      "en": "Audio sync offset (ms)",
+      "zh": "音频同步偏移（毫秒）"
+    },
+    {
+      "key": "chartRenderAudioSyncOffsetMsHint",
+      "en": "Advanced fallback. Positive values make audio earlier; negative values delay audio. 10 frames at 60 fps is about 167 ms.",
+      "zh": "高级兜底设置。正数让音频提前，负数让音频延后。60 帧下 10 帧约等于 167 毫秒。"
+    },
+    {
       "key": "chartRenderProfileHint",
       "en": "Changes apply to the next render immediately. Lower CRF means higher quality and larger files.",
       "zh": "修改后下一次渲染立即生效。CRF 越低画质越高、文件越大。"
