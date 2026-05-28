@@ -46,19 +46,4 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
         }
     }
-
-    [HarmonyPatch(typeof(scrConductor), "get_calibration_i")]
-    internal static class ChartRenderInputOffsetPatch
-    {
-        private static bool Prefix(ref float __result)
-        {
-            if (!ChartRenderSession.IsRendering)
-            {
-                return true;
-            }
-
-            __result = 0f;
-            return false;
-        }
-    }
 }

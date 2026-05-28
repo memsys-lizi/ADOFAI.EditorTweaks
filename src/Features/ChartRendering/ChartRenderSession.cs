@@ -745,7 +745,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 + " audioChannels=" + (audioCapture == null ? -1 : audioCapture.ChannelCount)
                 + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
                 + " floor=" + GetPrimaryPlayerFloor()
-                + " suppressedInputOffsetMs=" + inputOffsetMs + ".");
+                + " inputOffsetMs=" + inputOffsetMs + ".");
         }
 
         private static double GetDspSongPosition(scrConductor? conductor)
@@ -755,7 +755,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 return 0.0;
             }
 
-            return (conductor.dspTime - conductor.dspTimeSong) * conductor.song.pitch - conductor.addoffset;
+            return (conductor.dspTime - conductor.dspTimeSong - GetInputOffsetSeconds()) * conductor.song.pitch - conductor.addoffset;
         }
 
         private static double SanitizeBeginningSongPosition(scrConductor? conductor, double rawStartSongPosition)
@@ -808,7 +808,20 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 countdownOffset = conductor.addoffset;
             }
 
-            return -Math.Max(0.0, countdownOffset);
+            double pitch = conductor.song == null ? 1.0 : conductor.song.pitch;
+            return -Math.Max(0.0, countdownOffset + GetInputOffsetSeconds() * pitch);
+        }
+
+        private static double GetInputOffsetSeconds()
+        {
+            try
+            {
+                return scrConductor.currentPreset.inputOffset * 0.001;
+            }
+            catch
+            {
+                return 0.0;
+            }
         }
 
         private static double GetBeginningAnchorUpperBound()
