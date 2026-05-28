@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -104,226 +102,22 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             writerThread = null;
         }
 
-        public void MuxAudio(ChartRenderAudioMixPlan audioPlan)
-        {
-            string scriptPath = Path.Combine(Path.GetDirectoryName(tempVideoPath) ?? string.Empty, "audio_mix.ffscript");
-            List<ChartRenderAudioClip> clips = audioPlan.Events
-                .Select(e => e.Clip)
-                .GroupBy(c => c.Name)
-                .Select(g => g.First())
-                .ToList();
-            File.WriteAllText(scriptPath, BuildAudioFilterScript(audioPlan, clips), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-            StringBuilder inputs = new StringBuilder();
-            inputs.Append("-y -i ").Append(Quote(tempVideoPath)).Append(' ');
-            inputs.Append("-i ").Append(Quote(audioPlan.SongPath)).Append(' ');
-            foreach (ChartRenderAudioClip clip in clips)
-            {
-                inputs.Append("-i ").Append(Quote(clip.Path)).Append(' ');
-            }
-
-            string args = inputs
-                + "-filter_complex_script " + Quote(scriptPath) + " "
-                + "-map 0:v:0 -map " + Quote("[mix]") + " -c:v copy -c:a aac -b:a 320k -movflags +faststart "
-                + Quote(finalVideoPath);
-            Process mux = StartProcess(args, redirectInput: false);
-            process = mux;
-            try
-            {
-                using (mux)
-                {
-                    mux.WaitForExit();
-                    if (mux.ExitCode != 0)
-                    {
-                        throw new InvalidOperationException("FFmpeg audio mux failed with exit code " + mux.ExitCode + ".");
-                    }
-                }
-            }
-            finally
-            {
-                process = null;
-            }
-        }
-
         public void MuxAudioFile(string audioPath)
         {
+            if (!File.Exists(audioPath))
+            {
+                throw new InvalidOperationException("Captured audio file does not exist: " + audioPath);
+            }
+
+            long videoBytes = File.Exists(tempVideoPath) ? new FileInfo(tempVideoPath).Length : 0L;
+            long audioBytes = new FileInfo(audioPath).Length;
+            ChartRenderDiagnostics.Log("Muxing captured audio. videoBytes=" + videoBytes + " audioBytes=" + audioBytes);
+
             string args = "-y -i " + Quote(tempVideoPath) + " "
                 + "-i " + Quote(audioPath) + " "
                 + "-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 320k -ac 2 -movflags +faststart "
                 + Quote(finalVideoPath);
-            Process mux = StartProcess(args, redirectInput: false);
-            process = mux;
-            try
-            {
-                using (mux)
-                {
-                    mux.WaitForExit();
-                    if (mux.ExitCode != 0)
-                    {
-                        throw new InvalidOperationException("FFmpeg audio mux failed with exit code " + mux.ExitCode + ".");
-                    }
-                }
-            }
-            finally
-            {
-                process = null;
-            }
-        }
-
-        private static string BuildAudioFilterScript(ChartRenderAudioMixPlan plan, IReadOnlyList<ChartRenderAudioClip> clips)
-        {
-            StringBuilder script = new StringBuilder();
-            List<string> mixLabels = new List<string>();
-
-            List<string> baseFilters = new List<string>();
-            double trimStart = Math.Max(0.0, -plan.SongDelaySeconds * Math.Max(0.01, plan.SongPitch));
-            if (trimStart > 0.000001)
-            {
-                baseFilters.Add("atrim=start=" + ChartRenderAudioFormat.Number(trimStart));
-                baseFilters.Add("asetpts=PTS-STARTPTS");
-            }
-
-            baseFilters.AddRange(BuildAtempoFilters(plan.SongPitch));
-            if (Math.Abs(plan.SongVolume - 1f) > 0.0001f)
-            {
-                baseFilters.Add("volume=" + ChartRenderAudioFormat.Number(plan.SongVolume));
-            }
-
-            double songDelay = Math.Max(0.0, plan.SongDelaySeconds);
-            if (songDelay > 0.000001)
-            {
-                int delayMs = SecondsToMilliseconds(songDelay);
-                baseFilters.Add("adelay=" + delayMs + "|" + delayMs);
-            }
-
-            baseFilters.Add("aformat=sample_fmts=fltp:channel_layouts=stereo");
-            script.Append("[1:a]").Append(string.Join(",", baseFilters)).Append("[base];").AppendLine();
-            mixLabels.Add("[base]");
-
-            Dictionary<string, int> clipIndexes = new Dictionary<string, int>();
-            for (int i = 0; i < clips.Count; i++)
-            {
-                clipIndexes[clips[i].Name] = i;
-            }
-
-            List<IGrouping<string, ChartRenderAudioEvent>> groups = plan.Events
-                .Where(e => e.Volume > 0.0001f)
-                .GroupBy(e => e.Clip.Name)
-                .ToList();
-            int soundIndex = 0;
-            foreach (IGrouping<string, ChartRenderAudioEvent> group in groups)
-            {
-                int clipInputIndex = 2 + clipIndexes[group.Key];
-                ChartRenderAudioEvent[] events = group.ToArray();
-                string[] splitLabels = new string[events.Length];
-                for (int i = 0; i < events.Length; i++)
-                {
-                    splitLabels[i] = "[c" + clipIndexes[group.Key] + "_" + i + "]";
-                }
-
-                script.Append("[").Append(clipInputIndex).Append(":a]aformat=sample_fmts=fltp:channel_layouts=stereo");
-                if (events.Length == 1)
-                {
-                    script.Append(splitLabels[0]).Append(";").AppendLine();
-                }
-                else
-                {
-                    script.Append(",asplit=").Append(events.Length).Append(string.Concat(splitLabels)).Append(";").AppendLine();
-                }
-
-                for (int i = 0; i < events.Length; i++)
-                {
-                    ChartRenderAudioEvent evnt = events[i];
-                    double outputStart = Math.Max(0.0, evnt.StartSeconds);
-                    double trim = Math.Max(0.0, -evnt.StartSeconds);
-                    double duration = evnt.Loops
-                        ? Math.Max(0.001, evnt.EndSeconds - outputStart)
-                        : -1.0;
-
-                    List<string> filters = new List<string>();
-                    if (evnt.Loops)
-                    {
-                        filters.Add("aloop=loop=-1:size=" + Math.Max(1, evnt.Clip.Samples));
-                    }
-
-                    if (trim > 0.000001 || duration > 0.0)
-                    {
-                        string atrim = "atrim";
-                        if (trim > 0.000001)
-                        {
-                            atrim += "=start=" + ChartRenderAudioFormat.Number(trim);
-                            if (duration > 0.0)
-                            {
-                                atrim += ":duration=" + ChartRenderAudioFormat.Number(duration);
-                            }
-                        }
-                        else if (duration > 0.0)
-                        {
-                            atrim += "=duration=" + ChartRenderAudioFormat.Number(duration);
-                        }
-
-                        filters.Add(atrim);
-                    }
-
-                    filters.Add("asetpts=PTS-STARTPTS");
-                    if (Math.Abs(evnt.Volume - 1f) > 0.0001f)
-                    {
-                        filters.Add("volume=" + ChartRenderAudioFormat.Number(evnt.Volume));
-                    }
-
-                    int delay = SecondsToMilliseconds(outputStart);
-                    if (delay > 0)
-                    {
-                        filters.Add("adelay=" + delay + "|" + delay);
-                    }
-
-                    string label = "[s" + soundIndex++ + "]";
-                    script.Append(splitLabels[i]).Append(string.Join(",", filters)).Append(label).Append(";").AppendLine();
-                    mixLabels.Add(label);
-                }
-            }
-
-            if (mixLabels.Count == 1)
-            {
-                script.Append(mixLabels[0]).Append("atrim=duration=").Append(ChartRenderAudioFormat.Number(plan.DurationSeconds)).Append("[mix];").AppendLine();
-            }
-            else
-            {
-                script.Append(string.Concat(mixLabels))
-                    .Append("amix=inputs=").Append(mixLabels.Count)
-                    .Append(":duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.97,atrim=duration=")
-                    .Append(ChartRenderAudioFormat.Number(plan.DurationSeconds))
-                    .Append("[mix];")
-                    .AppendLine();
-            }
-
-            return script.ToString();
-        }
-
-        private static IEnumerable<string> BuildAtempoFilters(double tempo)
-        {
-            tempo = Math.Max(0.01, tempo);
-            while (tempo > 2.0)
-            {
-                yield return "atempo=2";
-                tempo /= 2.0;
-            }
-
-            while (tempo < 0.5)
-            {
-                yield return "atempo=0.5";
-                tempo /= 0.5;
-            }
-
-            if (Math.Abs(tempo - 1.0) > 0.0001)
-            {
-                yield return "atempo=" + ChartRenderAudioFormat.Number(tempo);
-            }
-        }
-
-        private static int SecondsToMilliseconds(double seconds)
-        {
-            return Math.Max(0, (int)Math.Round(seconds * 1000.0));
+            RunMuxProcess(args);
         }
 
         public void Dispose()
@@ -503,6 +297,81 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             return started;
+        }
+
+        private void RunMuxProcess(string arguments)
+        {
+            ProcessStartInfo info = new ProcessStartInfo
+            {
+                FileName = ffmpegPath,
+                Arguments = "-hide_banner -loglevel warning " + arguments,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true
+            };
+
+            StringBuilder stderr = new StringBuilder();
+            StringBuilder stdout = new StringBuilder();
+            ChartRenderDiagnostics.Log("FFmpeg mux args: " + arguments);
+
+            Process? mux = Process.Start(info);
+            if (mux == null)
+            {
+                throw new InvalidOperationException("Failed to start FFmpeg.");
+            }
+
+            process = mux;
+            try
+            {
+                using (mux)
+                {
+                    mux.ErrorDataReceived += (_, e) =>
+                    {
+                        if (e.Data != null)
+                        {
+                            stderr.AppendLine(e.Data);
+                        }
+                    };
+                    mux.OutputDataReceived += (_, e) =>
+                    {
+                        if (e.Data != null)
+                        {
+                            stdout.AppendLine(e.Data);
+                        }
+                    };
+                    mux.BeginErrorReadLine();
+                    mux.BeginOutputReadLine();
+                    mux.WaitForExit();
+
+                    if (mux.ExitCode != 0)
+                    {
+                        string detail = BuildProcessFailureDetail(stdout.ToString(), stderr.ToString());
+                        ChartRenderDiagnostics.Log("FFmpeg audio mux failed with exit code " + mux.ExitCode + "." + detail);
+                        throw new InvalidOperationException("FFmpeg audio mux failed with exit code " + mux.ExitCode + "." + detail);
+                    }
+                }
+            }
+            finally
+            {
+                process = null;
+            }
+        }
+
+        private static string BuildProcessFailureDetail(string stdout, string stderr)
+        {
+            StringBuilder detail = new StringBuilder();
+            if (!string.IsNullOrWhiteSpace(stderr))
+            {
+                detail.AppendLine().Append("stderr: ").Append(stderr.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(stdout))
+            {
+                detail.AppendLine().Append("stdout: ").Append(stdout.Trim());
+            }
+
+            return detail.ToString();
         }
 
         private static string Quote(string value)

@@ -302,7 +302,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             StageText = Settings.Text("chartRendererMuxing");
             DetailText = Path.GetFileName(outputPath);
             backgroundOk = false;
-            yield return RunBackground(() => encoder!.MuxAudioFile(capturedAudioPath), encoder, result, deleteTempOnCancel: true, ok => backgroundOk = ok);
+            yield return RunBackground(() => encoder!.MuxAudioFile(capturedAudioPath), encoder, result, deleteTempOnCancel: true, deleteTempOnFailure: false, onDone: ok => backgroundOk = ok);
             if (!backgroundOk)
             {
                 Finish(onComplete, result);
@@ -318,6 +318,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         }
 
         private IEnumerator RunBackground(Action action, FfmpegEncoder? encoder, ChartRenderResult result, bool deleteTempOnCancel, Action<bool> onDone)
+        {
+            return RunBackground(action, encoder, result, deleteTempOnCancel, deleteTempOnFailure: true, onDone);
+        }
+
+        private IEnumerator RunBackground(Action action, FfmpegEncoder? encoder, ChartRenderResult result, bool deleteTempOnCancel, bool deleteTempOnFailure, Action<bool> onDone)
         {
             Exception? backgroundFailure = null;
             ManualResetEventSlim done = new ManualResetEventSlim(false);
@@ -367,7 +372,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 result.Success = false;
                 result.Message = backgroundFailure.Message;
-                Cleanup(null, encoder, restoreEditor: false, deleteTemp: true);
+                Cleanup(null, encoder, restoreEditor: false, deleteTemp: deleteTempOnFailure);
                 onDone(false);
                 yield break;
             }

@@ -1,6 +1,5 @@
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.Audio;
 
 namespace ADOFAI.EditorTweaks.Features.ChartRendering
 {
@@ -16,34 +15,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             __result = clip;
             return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(AudioManager), nameof(AudioManager.Play), typeof(string), typeof(double), typeof(AudioMixerGroup), typeof(float), typeof(int))]
-    internal static class ChartRenderAudioManagerPlayPatch
-    {
-        private static void Prefix(string snd, double time, float volume)
-        {
-            if (!ChartRenderSession.IsRendering)
-            {
-                return;
-            }
-
-            ChartRenderAudioRecorder.RecordScheduledSound(snd, time, volume);
-        }
-    }
-
-    [HarmonyPatch(typeof(scrConductor), nameof(scrConductor.PlayWithEndTime), typeof(string), typeof(double), typeof(double), typeof(float), typeof(int))]
-    internal static class ChartRenderHoldLoopPatch
-    {
-        private static void Prefix(string snd, double time, double endTime, float volume)
-        {
-            if (!ChartRenderSession.IsRendering)
-            {
-                return;
-            }
-
-            ChartRenderAudioRecorder.RecordScheduledSound(snd, time, volume, endTime);
         }
     }
 }
