@@ -7,11 +7,21 @@ namespace ADOFAI.EditorTweaks
 {
     public class Settings : UnityModManager.ModSettings
     {
-        private const int FixedChartRenderWidth = 1920;
-        private const int FixedChartRenderHeight = 1080;
-        private const int FixedChartRenderFps = 60;
-        private const int FixedChartRenderCrf = 18;
-        private const string FixedChartRenderPreset = "veryfast";
+        private const int MinChartRenderSize = 16;
+        private const int MaxChartRenderWidth = 7680;
+        private const int MaxChartRenderHeight = 4320;
+        private const int MinChartRenderFps = 1;
+        private const int MaxChartRenderFps = 240;
+        private const int MinChartRenderCrf = 0;
+        private const int MaxChartRenderCrf = 51;
+        private const int DefaultChartRenderWidth = 1920;
+        private const int DefaultChartRenderHeight = 1080;
+        private const int DefaultChartRenderFps = 60;
+        private const int DefaultChartRenderCrf = 18;
+        private const float DefaultChartRenderCompletionTailSeconds = 5f;
+        private const bool DefaultChartRenderShowHitJudgments = true;
+        private const bool DefaultChartRenderAdvancedSettingsExpanded = false;
+        private const string DefaultChartRenderPreset = "veryfast";
 
         public bool EnableNumericDrag = true;
 
@@ -57,6 +67,8 @@ namespace ADOFAI.EditorTweaks
 
         public bool ChartRenderShowHitJudgments = true;
 
+        public bool ChartRenderAdvancedSettingsExpanded = false;
+
         private static GUIStyle? panelStyle;
 
         private static GUIStyle? titleStyle;
@@ -79,6 +91,16 @@ namespace ADOFAI.EditorTweaks
 
         private string decimalsText = string.Empty;
 
+        private string renderWidthText = string.Empty;
+
+        private string renderHeightText = string.Empty;
+
+        private string renderFpsText = string.Empty;
+
+        private string renderCrfText = string.Empty;
+
+        private string renderPresetText = string.Empty;
+
         private string renderTailSecondsText = string.Empty;
 
         private bool textFieldsInitialized;
@@ -87,6 +109,17 @@ namespace ADOFAI.EditorTweaks
         {
             EnsureStyles();
             EnsureTextFields();
+
+            int oldRenderWidth = ChartRenderWidth;
+            int oldRenderHeight = ChartRenderHeight;
+            int oldRenderFps = ChartRenderFps;
+            int oldRenderCrf = ChartRenderCrf;
+            string oldRenderPreset = ChartRenderPreset;
+            float oldRenderTail = ChartRenderCompletionTailSeconds;
+            bool oldRenderJudgments = ChartRenderShowHitJudgments;
+            bool oldAdvancedSettingsExpanded = ChartRenderAdvancedSettingsExpanded;
+            string oldWorkspaceDirectory = ChartRenderWorkspaceDirectory;
+            string oldExportDirectory = ChartRenderExportDirectory;
 
             GUILayout.BeginVertical(panelStyle);
             GUILayout.Label(Text("title"), titleStyle);
@@ -111,14 +144,53 @@ namespace ADOFAI.EditorTweaks
             DecorationMoveSnapStep = DrawFloatRow(Text("decorationMoveSnapStep"), DecorationMoveSnapStep, ref snapStepText, 0f, Text("zeroDisables"));
 
             DrawSection(Text("renderSection"));
-            ChartRenderWorkspaceDirectory = DrawTextRow(Text("chartRenderWorkspaceDirectory"), ChartRenderWorkspaceDirectory);
-            ChartRenderExportDirectory = DrawTextRow(Text("chartRenderExportDirectory"), ChartRenderExportDirectory);
-            GUILayout.Label(Text("chartRenderFixedProfile"), hintStyle);
-            ChartRenderCompletionTailSeconds = DrawFloatRow(Text("chartRenderCompletionTailSeconds"), ChartRenderCompletionTailSeconds, ref renderTailSecondsText, 0f);
-            ChartRenderShowHitJudgments = DrawToggleRow(ChartRenderShowHitJudgments, Text("chartRenderShowHitJudgments"));
+            GUILayout.Label(Text("chartRenderBasicHint"), hintStyle);
+            ChartRenderExportDirectory = DrawTextSettingRow(Text("chartRenderExportDirectory"), Text("chartRenderExportDirectoryHint"), ChartRenderExportDirectory, GetDefaultExportDirectory(modEntry));
+            ChartRenderWidth = DrawIntSettingRow(Text("chartRenderWidth"), Text("chartRenderWidthHint"), ChartRenderWidth, ref renderWidthText, MinChartRenderSize, MaxChartRenderWidth, DefaultChartRenderWidth);
+            ChartRenderHeight = DrawIntSettingRow(Text("chartRenderHeight"), Text("chartRenderHeightHint"), ChartRenderHeight, ref renderHeightText, MinChartRenderSize, MaxChartRenderHeight, DefaultChartRenderHeight);
+            ChartRenderFps = DrawIntSettingRow(Text("chartRenderFps"), Text("chartRenderFpsHint"), ChartRenderFps, ref renderFpsText, MinChartRenderFps, MaxChartRenderFps, DefaultChartRenderFps);
+            ChartRenderCompletionTailSeconds = DrawFloatSettingRow(Text("chartRenderCompletionTailSeconds"), Text("chartRenderCompletionTailSecondsHint"), ChartRenderCompletionTailSeconds, ref renderTailSecondsText, 0f, DefaultChartRenderCompletionTailSeconds);
+            ChartRenderShowHitJudgments = DrawToggleSettingRow(Text("chartRenderShowHitJudgments"), Text("chartRenderShowHitJudgmentsHint"), ChartRenderShowHitJudgments, DefaultChartRenderShowHitJudgments);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(Text("chartRenderResetAll"), GUILayout.Width(150)))
+            {
+                ResetChartRenderDefaults(modEntry);
+            }
+
+            if (GUILayout.Button(ChartRenderAdvancedSettingsExpanded ? Text("chartRenderHideAdvanced") : Text("chartRenderShowAdvanced"), GUILayout.Width(170)))
+            {
+                ChartRenderAdvancedSettingsExpanded = !ChartRenderAdvancedSettingsExpanded;
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (ChartRenderAdvancedSettingsExpanded)
+            {
+                GUILayout.Label(Text("chartRenderAdvancedHint"), hintStyle);
+                ChartRenderWorkspaceDirectory = DrawTextSettingRow(Text("chartRenderWorkspaceDirectory"), Text("chartRenderWorkspaceDirectoryHint"), ChartRenderWorkspaceDirectory, GetDefaultWorkspaceDirectory(modEntry));
+                ChartRenderCrf = DrawIntSettingRow(Text("chartRenderCrf"), Text("chartRenderCrfHint"), ChartRenderCrf, ref renderCrfText, MinChartRenderCrf, MaxChartRenderCrf, DefaultChartRenderCrf);
+                ChartRenderPreset = DrawStringSettingRow(Text("chartRenderPreset"), Text("chartRenderPresetHint"), ChartRenderPreset, ref renderPresetText, DefaultChartRenderPreset);
+            }
 
             GUILayout.Space(2);
             GUILayout.EndVertical();
+
+            NormalizeChartRenderSettings();
+            if (oldRenderWidth != ChartRenderWidth
+                || oldRenderHeight != ChartRenderHeight
+                || oldRenderFps != ChartRenderFps
+                || oldRenderCrf != ChartRenderCrf
+                || oldRenderPreset != ChartRenderPreset
+                || oldRenderTail != ChartRenderCompletionTailSeconds
+                || oldRenderJudgments != ChartRenderShowHitJudgments
+                || oldAdvancedSettingsExpanded != ChartRenderAdvancedSettingsExpanded
+                || oldWorkspaceDirectory != ChartRenderWorkspaceDirectory
+                || oldExportDirectory != ChartRenderExportDirectory)
+            {
+                Save(modEntry);
+            }
         }
 
         private void EnsureTextFields()
@@ -132,6 +204,11 @@ namespace ADOFAI.EditorTweaks
             floatStepText = FormatFloat(FloatStepPerPixel);
             intStepText = FormatFloat(IntStepPerPixel);
             decimalsText = MaxFloatingPoints.ToString(CultureInfo.InvariantCulture);
+            renderWidthText = ChartRenderWidth.ToString(CultureInfo.InvariantCulture);
+            renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
+            renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
+            renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
+            renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
             textFieldsInitialized = true;
         }
@@ -250,6 +327,101 @@ namespace ADOFAI.EditorTweaks
             return next;
         }
 
+        private static int DrawIntSettingRow(string label, string hint, int value, ref string text, int min, int max, int defaultValue)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            text = GUILayout.TextField(text, textFieldStyle, GUILayout.Width(96));
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int next))
+            {
+                value = Mathf.Clamp(next, min, max);
+            }
+
+            if (GUILayout.Button(Text("chartRenderReset"), GUILayout.Width(64)))
+            {
+                value = defaultValue;
+                text = value.ToString(CultureInfo.InvariantCulture);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(hint, hintStyle);
+            return value;
+        }
+
+        private static float DrawFloatSettingRow(string label, string hint, float value, ref string text, float min, float defaultValue)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            text = GUILayout.TextField(text, textFieldStyle, GUILayout.Width(96));
+            if (TryParseFloat(text, out float next))
+            {
+                value = Mathf.Max(min, next);
+            }
+
+            if (GUILayout.Button(Text("chartRenderReset"), GUILayout.Width(64)))
+            {
+                value = defaultValue;
+                text = FormatFloat(value);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(hint, hintStyle);
+            return value;
+        }
+
+        private static string DrawTextSettingRow(string label, string hint, string value, string defaultValue)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            string next = GUILayout.TextField(value ?? string.Empty, textFieldStyle, GUILayout.MinWidth(220), GUILayout.ExpandWidth(true));
+            if (GUILayout.Button(Text("chartRenderReset"), GUILayout.Width(64)))
+            {
+                next = defaultValue;
+            }
+
+            GUILayout.EndHorizontal();
+            GUILayout.Label(hint, hintStyle);
+            return next;
+        }
+
+        private static string DrawStringSettingRow(string label, string hint, string value, ref string text, string defaultValue)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, labelStyle, GUILayout.Width(190));
+            text = GUILayout.TextField(text ?? string.Empty, textFieldStyle, GUILayout.Width(140));
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                value = text.Trim();
+            }
+
+            if (GUILayout.Button(Text("chartRenderReset"), GUILayout.Width(64)))
+            {
+                value = defaultValue;
+                text = defaultValue;
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(hint, hintStyle);
+            return value;
+        }
+
+        private static bool DrawToggleSettingRow(string label, string hint, bool value, bool defaultValue)
+        {
+            GUILayout.BeginHorizontal();
+            value = GUILayout.Toggle(value, label, toggleStyle, GUILayout.ExpandWidth(true));
+            if (GUILayout.Button(Text("chartRenderReset"), GUILayout.Width(64)))
+            {
+                value = defaultValue;
+            }
+
+            GUILayout.EndHorizontal();
+            GUILayout.Label(hint, hintStyle);
+            return value;
+        }
+
         private static string FormatFloat(float value)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
@@ -273,38 +445,78 @@ namespace ADOFAI.EditorTweaks
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
-            ApplyFixedChartRenderProfile();
-            ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
+            NormalizeChartRenderSettings();
             Save(this, modEntry);
         }
 
         public void EnsureDefaults(UnityModManager.ModEntry modEntry)
         {
-            ApplyFixedChartRenderProfile();
-            ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
-
-            string workspace = Path.Combine(modEntry.Path, "Workspace");
             if (string.IsNullOrWhiteSpace(ChartRenderWorkspaceDirectory))
             {
-                ChartRenderWorkspaceDirectory = workspace;
+                ChartRenderWorkspaceDirectory = GetDefaultWorkspaceDirectory(modEntry);
             }
 
             if (string.IsNullOrWhiteSpace(ChartRenderExportDirectory))
             {
-                string videos = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos);
-                ChartRenderExportDirectory = string.IsNullOrWhiteSpace(videos)
-                    ? Path.Combine(workspace, "Exports")
-                    : Path.Combine(videos, "ADOFAI Renders");
+                ChartRenderExportDirectory = GetDefaultExportDirectory(modEntry);
             }
+
+            NormalizeChartRenderSettings();
         }
 
-        private void ApplyFixedChartRenderProfile()
+        private void NormalizeChartRenderSettings()
         {
-            ChartRenderWidth = FixedChartRenderWidth;
-            ChartRenderHeight = FixedChartRenderHeight;
-            ChartRenderFps = FixedChartRenderFps;
-            ChartRenderCrf = FixedChartRenderCrf;
-            ChartRenderPreset = FixedChartRenderPreset;
+            ChartRenderWidth = MakeEven(Mathf.Clamp(ChartRenderWidth, MinChartRenderSize, MaxChartRenderWidth));
+            ChartRenderHeight = MakeEven(Mathf.Clamp(ChartRenderHeight, MinChartRenderSize, MaxChartRenderHeight));
+            ChartRenderFps = Mathf.Clamp(ChartRenderFps, MinChartRenderFps, MaxChartRenderFps);
+            ChartRenderCrf = Mathf.Clamp(ChartRenderCrf, MinChartRenderCrf, MaxChartRenderCrf);
+            ChartRenderPreset = string.IsNullOrWhiteSpace(ChartRenderPreset)
+                ? DefaultChartRenderPreset
+                : ChartRenderPreset.Trim();
+            ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
+        }
+
+        private static int MakeEven(int value)
+        {
+            return value % 2 == 0 ? value : value + 1;
+        }
+
+        private void ResetChartRenderDefaults(UnityModManager.ModEntry modEntry)
+        {
+            ChartRenderWorkspaceDirectory = GetDefaultWorkspaceDirectory(modEntry);
+            ChartRenderExportDirectory = GetDefaultExportDirectory(modEntry);
+            ChartRenderWidth = DefaultChartRenderWidth;
+            ChartRenderHeight = DefaultChartRenderHeight;
+            ChartRenderFps = DefaultChartRenderFps;
+            ChartRenderCrf = DefaultChartRenderCrf;
+            ChartRenderPreset = DefaultChartRenderPreset;
+            ChartRenderCompletionTailSeconds = DefaultChartRenderCompletionTailSeconds;
+            ChartRenderShowHitJudgments = DefaultChartRenderShowHitJudgments;
+            ChartRenderAdvancedSettingsExpanded = DefaultChartRenderAdvancedSettingsExpanded;
+            SyncChartRenderTextFields();
+        }
+
+        private void SyncChartRenderTextFields()
+        {
+            renderWidthText = ChartRenderWidth.ToString(CultureInfo.InvariantCulture);
+            renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
+            renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
+            renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
+            renderPresetText = ChartRenderPreset;
+            renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
+        }
+
+        private static string GetDefaultWorkspaceDirectory(UnityModManager.ModEntry modEntry)
+        {
+            return Path.Combine(modEntry.Path, "Workspace");
+        }
+
+        private static string GetDefaultExportDirectory(UnityModManager.ModEntry modEntry)
+        {
+            string videos = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos);
+            return string.IsNullOrWhiteSpace(videos)
+                ? Path.Combine(GetDefaultWorkspaceDirectory(modEntry), "Exports")
+                : Path.Combine(videos, "ADOFAI Renders");
         }
 
         public static Settings Load(UnityModManager.ModEntry modEntry)

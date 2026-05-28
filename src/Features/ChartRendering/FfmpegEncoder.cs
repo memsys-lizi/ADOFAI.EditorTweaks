@@ -180,7 +180,24 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private string GetRealtimePreset()
         {
-            return string.IsNullOrWhiteSpace(preset) || preset == "veryfast" ? "ultrafast" : preset;
+            if (string.IsNullOrWhiteSpace(preset))
+            {
+                return "ultrafast";
+            }
+
+            string lowered = preset.ToLowerInvariant();
+            if (lowered == "cpu" || lowered == "x264" || lowered == "veryfast")
+            {
+                return "ultrafast";
+            }
+
+            if (lowered.StartsWith("x264:", StringComparison.Ordinal))
+            {
+                string x264Preset = preset.Substring("x264:".Length).Trim();
+                return string.IsNullOrWhiteSpace(x264Preset) ? "ultrafast" : x264Preset;
+            }
+
+            return preset;
         }
 
         private string GetVideoEncoderArguments()

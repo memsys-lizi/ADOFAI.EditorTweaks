@@ -96,9 +96,19 @@
       "zh": "工作区目录"
     },
     {
+      "key": "chartRenderWorkspaceDirectoryHint",
+      "en": "Temporary files are written here while rendering. Leave the default unless the drive is too small.",
+      "zh": "渲染时临时视频和音频会写在这里。除非磁盘空间不够，否则保持默认即可。"
+    },
+    {
       "key": "chartRenderExportDirectory",
       "en": "Export directory",
       "zh": "导出目录"
+    },
+    {
+      "key": "chartRenderExportDirectoryHint",
+      "en": "Final MP4 files are saved here.",
+      "zh": "最终生成的 MP4 视频会保存到这里。"
     },
     {
       "key": "chartRenderWidth",
@@ -106,9 +116,19 @@
       "zh": "视频宽度"
     },
     {
+      "key": "chartRenderWidthHint",
+      "en": "Horizontal resolution. Higher values are sharper but slower and create larger files.",
+      "zh": "横向分辨率。越大越清晰，但渲染更慢、文件更大。"
+    },
+    {
       "key": "chartRenderHeight",
       "en": "Video height",
       "zh": "视频高度"
+    },
+    {
+      "key": "chartRenderHeightHint",
+      "en": "Vertical resolution. 1080 is recommended for most uploads.",
+      "zh": "纵向分辨率。普通投稿推荐 1080。"
     },
     {
       "key": "chartRenderFps",
@@ -116,14 +136,64 @@
       "zh": "帧率"
     },
     {
+      "key": "chartRenderFpsHint",
+      "en": "Frames per second. 60 fps is smooth and recommended.",
+      "zh": "每秒画面数量。60 帧已经很流畅，推荐保持默认。"
+    },
+    {
       "key": "chartRenderCrf",
-      "en": "CRF quality",
-      "zh": "CRF 质量"
+      "en": "Quality parameter",
+      "zh": "画质参数"
+    },
+    {
+      "key": "chartRenderCrfHint",
+      "en": "Advanced x264/NVENC quality value. Lower means clearer video and larger files.",
+      "zh": "高级画质参数。数值越低越清晰、文件越大。看不懂就保持默认。"
     },
     {
       "key": "chartRenderPreset",
-      "en": "FFmpeg preset",
-      "zh": "FFmpeg 预设"
+      "en": "Encoder mode",
+      "zh": "编码方式"
+    },
+    {
+      "key": "chartRenderPresetHint",
+      "en": "Default uses GPU encoding when available. Use cpu only when GPU encoding fails.",
+      "zh": "默认会优先使用 GPU 硬编码。只有 GPU 编码出问题时才建议填 cpu。"
+    },
+    {
+      "key": "chartRenderProfileHint",
+      "en": "Changes apply to the next render immediately. Lower CRF means higher quality and larger files.",
+      "zh": "修改后下一次渲染立即生效。CRF 越低画质越高、文件越大。"
+    },
+    {
+      "key": "chartRenderBasicHint",
+      "en": "Recommended default: 1080p, 60 fps, GPU encoding when available.",
+      "zh": "推荐默认：1080p、60 帧，并在可用时优先使用 GPU 硬编码。"
+    },
+    {
+      "key": "chartRenderAdvancedHint",
+      "en": "Advanced settings are only needed for troubleshooting or special export requirements.",
+      "zh": "高级设置只适合排查问题或有特殊导出需求时使用。"
+    },
+    {
+      "key": "chartRenderShowAdvanced",
+      "en": "Show advanced settings",
+      "zh": "显示高级设置"
+    },
+    {
+      "key": "chartRenderHideAdvanced",
+      "en": "Hide advanced settings",
+      "zh": "隐藏高级设置"
+    },
+    {
+      "key": "chartRenderReset",
+      "en": "Reset",
+      "zh": "重置"
+    },
+    {
+      "key": "chartRenderResetAll",
+      "en": "Reset render defaults",
+      "zh": "一键恢复渲染默认"
     },
     {
       "key": "chartRenderFixedProfile",
@@ -136,9 +206,19 @@
       "zh": "结束后延迟停止秒数"
     },
     {
+      "key": "chartRenderCompletionTailSecondsHint",
+      "en": "Extra seconds recorded after the final tile so ending effects and echoes are not cut off.",
+      "zh": "最后一个砖块后额外录制几秒，避免结尾特效或回声被切掉。"
+    },
+    {
       "key": "chartRenderShowHitJudgments",
       "en": "Show hit judgments while rendering",
       "zh": "渲染时显示判定文字"
+    },
+    {
+      "key": "chartRenderShowHitJudgmentsHint",
+      "en": "Controls whether Perfect/Early/Late text appears in the exported video.",
+      "zh": "控制成品视频里是否显示 Perfect、Early、Late 等判定文字。"
     },
     {
       "key": "chartRendererTitle",

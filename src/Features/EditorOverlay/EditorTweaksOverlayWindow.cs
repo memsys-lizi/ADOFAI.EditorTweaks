@@ -231,7 +231,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private void DrawChartRenderPanel(float y)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            Rect panelRect = new Rect(20f, y, width - 40f, 136f);
+            Rect panelRect = new Rect(20f, y, width - 40f, 150f);
             GUI.Box(panelRect, GUIContent.none, rowStyle);
             DrawRect(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
 
@@ -245,8 +245,9 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             }
 
             GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 10f, panelRect.width - 28f, 34f), status, labelStyle);
+            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 44f, panelRect.width - 28f, 20f), GetChartRenderProfileText(), hintStyle);
 
-            Rect toggleRect = new Rect(panelRect.x + 14f, panelRect.y + 52f, panelRect.width - 28f, 24f);
+            Rect toggleRect = new Rect(panelRect.x + 14f, panelRect.y + 68f, panelRect.width - 28f, 24f);
             bool showJudgments = GUI.Toggle(toggleRect, Main.Settings.ChartRenderShowHitJudgments, Settings.Text("chartRenderShowHitJudgments"), toggleStyle);
             if (showJudgments != Main.Settings.ChartRenderShowHitJudgments)
             {
@@ -255,12 +256,19 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             }
 
             GUI.enabled = canRender;
-            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 92f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
+            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 106f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
             {
                 StartChartRender();
             }
 
             GUI.enabled = true;
+        }
+
+        private static string GetChartRenderProfileText()
+        {
+            Settings settings = Main.Settings;
+            return settings.ChartRenderWidth + "x" + settings.ChartRenderHeight
+                + " @ " + settings.ChartRenderFps + "fps";
         }
 
         private void StartChartRender()
