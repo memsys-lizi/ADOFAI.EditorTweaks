@@ -38,6 +38,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private string outputPath = string.Empty;
         private RenderState? savedState;
         private ChartUnityAudioCapture? audioCapture;
+        private bool playbackStartsAtBeginning;
 
         public ChartRenderSession(UnityModManager.ModEntry modEntry, Settings settings)
         {
@@ -183,10 +184,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 yield break;
             }
 
-            BeginForcedVisualClock();
             Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
             Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
-            ChartRenderDiagnostics.LogFrame(0, 0);
 
             if (!Try(() =>
             {
@@ -198,6 +197,9 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 encoder = new FfmpegEncoder(ChartRenderPaths.GetFfmpegPath(), tempVideoPath, outputPath, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps, settings.ChartRenderCrf, settings.ChartRenderPreset);
                 encoder.BeginVideo();
                 EncoderName = encoder.EncoderName;
+                BeginForcedVisualClock();
+                SetForcedFrameTimeFromAudioCursor(0);
+                ChartRenderDiagnostics.LogFrame(0, 0);
             }, out failure))
             {
                 result.Success = false;
@@ -237,7 +239,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     audioCapture!.CaptureFrame();
                     pendingFrames.Enqueue(frameCapture!.RequestFrame(requestedFrames));
                     requestedFrames++;
-                    SetForcedFrameTime(requestedFrames);
+                    SetForcedFrameTimeFromAudioCursor(requestedFrames);
                     ChartRenderDiagnostics.LogFrame(requestedFrames, renderFrameLimit);
                     DrainReadyFrames(encoder!);
                     if (completionFrame < 0 && HasReachedLevelEnd())
@@ -272,6 +274,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             frameCapture?.Dispose();
             frameCapture = null;
             audioCapture?.Complete();
+            if (audioCapture != null)
+            {
+                double videoSeconds = requestedFrames / (double)Math.Max(1, settings.ChartRenderFps);
+                WriteLog("Audio capture complete. samples=" + audioCapture.CapturedSampleFrames
+                    + " audioSeconds=" + Number(audioCapture.CapturedSeconds)
+                    + " videoFrames=" + requestedFrames
+                    + " videoSeconds=" + Number(videoSeconds)
+                    + " deltaAudioMinusVideo=" + Number(audioCapture.CapturedSeconds - videoSeconds) + ".");
+            }
+
             ChartRenderVisualClock.End();
             RestoreState();
 
@@ -500,14 +512,21 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
+                if (Persistence.skipIntroBehavior != SkipIntroBehavior.Off)
+                {
+                    ChartRenderDiagnostics.Log("Temporarily disabling skip intro for render. oldValue=" + Persistence.skipIntroBehavior + ".");
+                    Persistence.skipIntroBehavior = SkipIntroBehavior.Off;
+                }
 
+                playbackStartsAtBeginning = false;
                 if (ADOBase.editor != null)
                 {
                     StartEditorPlayback();
+                    playbackStartsAtBeginning = true;
                     return;
                 }
 
-                StartGameScenePlayback();
+                playbackStartsAtBeginning = StartGameScenePlayback();
             }, out failure);
         }
 
@@ -527,7 +546,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             RDC.auto = true;
         }
 
-        private static void StartGameScenePlayback()
+        private static bool StartGameScenePlayback()
         {
             scrController controller = ADOBase.controller;
             if (controller == null || !IsPlayableLevelLoaded())
@@ -544,7 +563,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             if (IsPlaybackScheduled())
             {
                 ChartRenderDiagnostics.Log("Game scene playback is already scheduled; capturing current timeline.");
-                return;
+                return false;
             }
 
             GCS.checkpointNum = 0;
@@ -562,6 +581,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 gameLevel.FinishCustomLevelLoading(checkpoint);
             }
+
+            return true;
         }
 
         private static void AbortWaitingForStartCoroutine(scrController controller)
@@ -682,17 +703,26 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             return index / (double)Math.Max(1, settings.ChartRenderFps);
         }
 
-        private void SetForcedFrameTime(int index)
+        private void SetForcedFrameTimeFromAudioCursor(int index)
         {
-            ChartRenderVisualClock.SetFrameTime(GetFrameTime(index), GetRenderPitch());
+            double seconds = audioCapture == null ? GetFrameTime(index) : audioCapture.CapturedSeconds;
+            if (seconds <= 0.0 && index > 0)
+            {
+                seconds = GetFrameTime(index);
+            }
+
+            ChartRenderVisualClock.SetFrameTime(seconds, GetRenderPitch());
         }
 
         private void BeginForcedVisualClock()
         {
             scrConductor conductor = ADOBase.conductor;
-            double startSongPosition = conductor == null ? 0.0 : conductor.songposition_minusi;
+            double rawStartSongPosition = conductor == null ? 0.0 : conductor.songposition_minusi;
+            double dspStartSongPosition = GetDspSongPosition(conductor);
+            double startSongPosition = playbackStartsAtBeginning
+                ? SanitizeBeginningSongPosition(conductor, dspStartSongPosition)
+                : dspStartSongPosition;
             ChartRenderVisualClock.Begin(startSongPosition);
-            SetForcedFrameTime(0);
 
             int inputOffsetMs = 0;
             try
@@ -704,10 +734,112 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             double addOffset = conductor == null ? 0.0 : conductor.addoffset;
-            WriteLog("Visual clock anchored at songposition=" + Number(startSongPosition)
+            WriteLog("Visual clock anchored to audio DSP at songposition=" + Number(startSongPosition)
+                + " raw=" + Number(rawStartSongPosition)
+                + " dspFormula=" + Number(dspStartSongPosition)
+                + " dspTime=" + Number(conductor == null ? double.NaN : conductor.dspTime)
+                + " dspTimeSong=" + Number(conductor == null ? double.NaN : conductor.dspTimeSong)
                 + " pitch=" + Number(GetRenderPitch())
                 + " addoffset=" + Number(addOffset)
+                + " audioSampleRate=" + (audioCapture == null ? -1 : audioCapture.SampleRate)
+                + " audioChannels=" + (audioCapture == null ? -1 : audioCapture.ChannelCount)
+                + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
+                + " floor=" + GetPrimaryPlayerFloor()
                 + " suppressedInputOffsetMs=" + inputOffsetMs + ".");
+        }
+
+        private static double GetDspSongPosition(scrConductor? conductor)
+        {
+            if (conductor == null || conductor.song == null)
+            {
+                return 0.0;
+            }
+
+            return (conductor.dspTime - conductor.dspTimeSong) * conductor.song.pitch - conductor.addoffset;
+        }
+
+        private static double SanitizeBeginningSongPosition(scrConductor? conductor, double rawStartSongPosition)
+        {
+            double fallback = GetBeginningSongPosition(conductor);
+            if (conductor == null)
+            {
+                return fallback;
+            }
+
+            double upperBound = GetBeginningAnchorUpperBound();
+            int floor = GetPrimaryPlayerFloor();
+            bool staleTimeline = rawStartSongPosition > upperBound
+                || (ADOBase.controller != null && ADOBase.controller.currentSeqID > 1)
+                || floor > 1;
+            if (!staleTimeline)
+            {
+                return rawStartSongPosition;
+            }
+
+            ChartRenderDiagnostics.Log("Beginning playback had stale songposition=" + Number(rawStartSongPosition)
+                + " upperBound=" + Number(upperBound)
+                + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
+                + " floor=" + floor
+                + "; using fallback=" + Number(fallback) + ".");
+            return fallback;
+        }
+
+        private static double GetBeginningSongPosition(scrConductor? conductor)
+        {
+            if (conductor == null)
+            {
+                return 0.0;
+            }
+
+            double countdownOffset = 0.0;
+            try
+            {
+                countdownOffset = conductor.separateCountdownTime
+                    ? conductor.crotchetAtStart * conductor.adjustedCountdownTicks
+                    : conductor.addoffset;
+            }
+            catch
+            {
+                countdownOffset = conductor.addoffset;
+            }
+
+            if (countdownOffset <= 0.000001)
+            {
+                countdownOffset = conductor.addoffset;
+            }
+
+            return -Math.Max(0.0, countdownOffset);
+        }
+
+        private static double GetBeginningAnchorUpperBound()
+        {
+            double upperBound = 1.0;
+            try
+            {
+                List<scrFloor>? floors = ADOBase.lm == null ? null : ADOBase.lm.listFloors;
+                if (floors != null && floors.Count > 1 && floors[0].nextfloor != null)
+                {
+                    upperBound = Math.Max(upperBound, floors[0].nextfloor.entryTime + 0.5);
+                }
+            }
+            catch
+            {
+            }
+
+            return upperBound;
+        }
+
+        private static int GetPrimaryPlayerFloor()
+        {
+            try
+            {
+                scrFloor? floor = ADOBase.controller?.playerOne?.currFloor;
+                return floor == null ? -1 : floor.seqID;
+            }
+            catch
+            {
+                return -1;
+            }
         }
 
         private float GetRenderPitch()
@@ -850,15 +982,17 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             private readonly int captureFramerate;
             private readonly int targetFrameRate;
             private readonly int vSyncCount;
+            private readonly SkipIntroBehavior skipIntroBehavior;
             private readonly List<int> selectedFloors;
 
-            private RenderState(bool auto, int checkpoint, int captureFramerate, int targetFrameRate, int vSyncCount, List<int> selectedFloors)
+            private RenderState(bool auto, int checkpoint, int captureFramerate, int targetFrameRate, int vSyncCount, SkipIntroBehavior skipIntroBehavior, List<int> selectedFloors)
             {
                 this.auto = auto;
                 this.checkpoint = checkpoint;
                 this.captureFramerate = captureFramerate;
                 this.targetFrameRate = targetFrameRate;
                 this.vSyncCount = vSyncCount;
+                this.skipIntroBehavior = skipIntroBehavior;
                 this.selectedFloors = selectedFloors;
             }
 
@@ -876,7 +1010,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     }
                 }
 
-                return new RenderState(RDC.auto, GCS.checkpointNum, Time.captureFramerate, Application.targetFrameRate, QualitySettings.vSyncCount, floors);
+                return new RenderState(RDC.auto, GCS.checkpointNum, Time.captureFramerate, Application.targetFrameRate, QualitySettings.vSyncCount, Persistence.skipIntroBehavior, floors);
             }
 
             public void Restore()
@@ -886,6 +1020,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 Time.captureFramerate = captureFramerate;
                 Application.targetFrameRate = targetFrameRate;
                 QualitySettings.vSyncCount = vSyncCount;
+                Persistence.skipIntroBehavior = skipIntroBehavior;
 
                 if (ADOBase.editor == null || ADOBase.editor.floors == null || selectedFloors.Count == 0)
                 {

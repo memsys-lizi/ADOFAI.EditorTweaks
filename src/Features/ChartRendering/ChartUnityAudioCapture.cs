@@ -27,6 +27,14 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public string Path => path;
 
+        public int SampleRate => sampleRate;
+
+        public int ChannelCount => channelCount;
+
+        public long CapturedSampleFrames => channelCount <= 0 ? 0L : dataBytes / (channelCount * sizeof(float));
+
+        public double CapturedSeconds => sampleRate <= 0 ? 0.0 : CapturedSampleFrames / (double)sampleRate;
+
         public void Begin()
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path) ?? string.Empty);
