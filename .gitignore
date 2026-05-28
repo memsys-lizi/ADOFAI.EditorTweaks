@@ -2,6 +2,7 @@
 bin/
 obj/
 out/
+dist/
 
 # IDE and editor state
 .vs/
@@ -44,3 +45,5 @@ Desktop.ini
 
 tools/ffmpeg.exe
 Tools/ffmpeg.exe
+tools/FFmpeg-*.txt
+Tools/FFmpeg-*.txt
