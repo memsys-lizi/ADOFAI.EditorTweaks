@@ -157,8 +157,93 @@
     },
     {
       "key": "chartRenderPresetHint",
-      "en": "Default uses GPU encoding when available. Use cpu only when GPU encoding fails.",
-      "zh": "默认会优先使用 GPU 硬编码。只有 GPU 编码出问题时才建议填 cpu。"
+      "en": "Custom fallback. Use values like cpu, x264:fast, or x264:ultrafast only when a preset mode is not enough.",
+      "zh": "自定义兜底项。只有预设档位不够用时才填写 cpu、x264:fast、x264:ultrafast 这类值。"
+    },
+    {
+      "key": "chartRenderEncoderMode",
+      "en": "Encoder preset",
+      "zh": "编码档位"
+    },
+    {
+      "key": "chartRenderEncoderModeHint",
+      "en": "Auto Balanced prefers GPU encoding, keeps H.264/yuv420p/AAC/MP4 compatibility, and falls back to x264 when needed.",
+      "zh": "自动均衡会优先 GPU 编码，同时保持 H.264/yuv420p/AAC/MP4 兼容性，必要时回退 x264。"
+    },
+    {
+      "key": "chartRenderEncoderAutoBalanced",
+      "en": "Auto Balanced",
+      "zh": "自动均衡"
+    },
+    {
+      "key": "chartRenderEncoderFastest",
+      "en": "Fastest",
+      "zh": "最快"
+    },
+    {
+      "key": "chartRenderEncoderBalanced",
+      "en": "Balanced",
+      "zh": "均衡"
+    },
+    {
+      "key": "chartRenderEncoderQuality",
+      "en": "Quality",
+      "zh": "质量"
+    },
+    {
+      "key": "chartRenderEncoderCpuCompatibility",
+      "en": "CPU Compatibility",
+      "zh": "CPU 兼容"
+    },
+    {
+      "key": "chartRenderEncoderCustom",
+      "en": "Custom",
+      "zh": "自定义"
+    },
+    {
+      "key": "chartRenderCaptureFormat",
+      "en": "Readback format",
+      "zh": "回读格式"
+    },
+    {
+      "key": "chartRenderCaptureFormatHint",
+      "en": "RGBA is the stable default. BGRA is experimental and may be faster on some Direct3D systems.",
+      "zh": "RGBA 是稳定默认项。BGRA 是实验项，在部分 Direct3D 环境下可能更快。"
+    },
+    {
+      "key": "chartRenderCaptureRgba",
+      "en": "RGBA",
+      "zh": "RGBA"
+    },
+    {
+      "key": "chartRenderCaptureBgra",
+      "en": "BGRA",
+      "zh": "BGRA"
+    },
+    {
+      "key": "chartRenderPreviewMode",
+      "en": "Render preview",
+      "zh": "渲染预览"
+    },
+    {
+      "key": "chartRenderPreviewModeHint",
+      "en": "Full shows the chart while rendering. Minimal hides the preview and only keeps the progress overlay.",
+      "zh": "完整预览会显示谱面画面；极简模式会隐藏预览，只保留进度遮罩。"
+    },
+    {
+      "key": "chartRenderPreviewFull",
+      "en": "Full",
+      "zh": "完整"
+    },
+    {
+      "key": "chartRenderPreviewDim",
+      "en": "Dim",
+      "zh": "暗色"
+    },
+    {
+      "key": "chartRenderPreviewMinimal",
+      "en": "Minimal",
+      "zh": "极简"
     },
     {
       "key": "chartRenderAudioSyncOffsetMs",

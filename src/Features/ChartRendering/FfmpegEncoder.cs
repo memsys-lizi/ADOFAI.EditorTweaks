@@ -20,14 +20,29 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly int height;
         private readonly int fps;
         private readonly int crf;
-        private readonly string preset;
+        private readonly string encoderMode;
+        private readonly string customPreset;
+        private readonly string inputPixelFormat;
+        private readonly int queueCapacityFrames;
         private readonly float audioSyncOffsetMs;
         private Process? process;
         private BlockingCollection<QueuedFrame>? frameQueue;
         private Thread? writerThread;
         private Exception? writerException;
 
-        public FfmpegEncoder(string ffmpegPath, string tempVideoPath, string finalVideoPath, int width, int height, int fps, int crf, string preset, float audioSyncOffsetMs)
+        public FfmpegEncoder(
+            string ffmpegPath,
+            string tempVideoPath,
+            string finalVideoPath,
+            int width,
+            int height,
+            int fps,
+            int crf,
+            string encoderMode,
+            string customPreset,
+            string inputPixelFormat,
+            int queueCapacityFrames,
+            float audioSyncOffsetMs)
         {
             this.ffmpegPath = ffmpegPath;
             this.tempVideoPath = tempVideoPath;
@@ -36,7 +51,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.height = height;
             this.fps = fps;
             this.crf = crf;
-            this.preset = string.IsNullOrWhiteSpace(preset) ? "veryfast" : preset.Trim();
+            this.encoderMode = ChartRenderOptionValues.NormalizeEncoderMode(encoderMode);
+            this.customPreset = string.IsNullOrWhiteSpace(customPreset) ? "veryfast" : customPreset.Trim();
+            this.inputPixelFormat = ChartRenderOptionValues.NormalizeCaptureFormat(inputPixelFormat);
+            this.queueCapacityFrames = Math.Max(1, queueCapacityFrames);
             this.audioSyncOffsetMs = audioSyncOffsetMs;
         }
 
@@ -44,7 +62,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public void BeginVideo()
         {
-            string args = "-y -f rawvideo -pixel_format rgba "
+            string args = "-y -f rawvideo -pixel_format " + inputPixelFormat + " "
                 + "-video_size " + width + "x" + height + " "
                 + "-framerate " + fps + " "
                 + "-i - -an -vf vflip "
@@ -52,8 +70,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 + "-pix_fmt yuv420p "
                 + Quote(tempVideoPath);
 
+            ChartRenderDiagnostics.Log("FFmpeg video args: mode=" + encoderMode
+                + " input=" + inputPixelFormat
+                + " queueFrames=" + queueCapacityFrames
+                + " args=" + args);
             process = StartProcess(args, redirectInput: true);
-            frameQueue = new BlockingCollection<QueuedFrame>(boundedCapacity: Math.Max(90, fps));
+            frameQueue = new BlockingCollection<QueuedFrame>(boundedCapacity: queueCapacityFrames);
             writerException = null;
             writerThread = new Thread(WriteLoop)
             {
@@ -63,19 +85,31 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             writerThread.Start();
         }
 
-        public void WriteFrame(byte[] frame, int length, int repeatCount, Action<byte[]>? release)
+        public void WriteFrame(byte[] frame, int length, int repeatCount, Action<byte[]>? release, Func<bool>? isCancelRequested = null)
         {
-            if (process == null || process.HasExited)
+            QueuedFrame queuedFrame = new QueuedFrame(frame, length, Math.Max(1, repeatCount), release);
+            while (true)
             {
-                throw new InvalidOperationException("FFmpeg video process is not running.");
-            }
+                if (isCancelRequested != null && isCancelRequested())
+                {
+                    throw new OperationCanceledException("Canceled.");
+                }
 
-            if (writerException != null)
-            {
-                throw new InvalidOperationException("FFmpeg writer failed.", writerException);
-            }
+                if (process == null || process.HasExited)
+                {
+                    throw new InvalidOperationException("FFmpeg video process is not running.");
+                }
 
-            frameQueue!.Add(new QueuedFrame(frame, length, Math.Max(1, repeatCount), release));
+                if (writerException != null)
+                {
+                    throw new InvalidOperationException("FFmpeg writer failed.", writerException);
+                }
+
+                if (frameQueue!.TryAdd(queuedFrame, 50))
+                {
+                    return;
+                }
+            }
         }
 
         public void CompleteVideo()
@@ -203,12 +237,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private string GetRealtimePreset()
         {
-            if (string.IsNullOrWhiteSpace(preset))
+            if (string.IsNullOrWhiteSpace(customPreset))
             {
                 return "ultrafast";
             }
 
-            string lowered = preset.ToLowerInvariant();
+            string lowered = customPreset.ToLowerInvariant();
             if (lowered == "cpu" || lowered == "x264" || lowered == "veryfast")
             {
                 return "ultrafast";
@@ -216,31 +250,95 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             if (lowered.StartsWith("x264:", StringComparison.Ordinal))
             {
-                string x264Preset = preset.Substring("x264:".Length).Trim();
+                string x264Preset = customPreset.Substring("x264:".Length).Trim();
                 return string.IsNullOrWhiteSpace(x264Preset) ? "ultrafast" : x264Preset;
             }
 
-            return preset;
+            return customPreset;
         }
 
         private string GetVideoEncoderArguments()
         {
-            if (!ForcesCpuEncoder() && IsNvencAvailable())
+            if (encoderMode == ChartRenderOptionValues.EncoderCustom)
             {
-                EncoderName = "h264_nvenc";
-                Main.Log("Chart renderer using h264_nvenc.");
-                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + Math.Max(0, Math.Min(51, crf)) + " -g " + Math.Max(1, fps * 2);
+                return GetCustomVideoEncoderArguments();
             }
 
-            EncoderName = "libx264";
-            Main.Log("Chart renderer using libx264.");
-            return "-c:v libx264 -preset " + Quote(GetRealtimePreset()) + " -crf " + crf + " -g " + Math.Max(1, fps * 2);
+            if (!ForcesCpuEncoder() && IsNvencAvailable())
+            {
+                string nvencPreset = GetNvencPreset();
+                string tune = encoderMode == ChartRenderOptionValues.EncoderFastest ? "ll" : "hq";
+                EncoderName = "h264_nvenc " + nvencPreset;
+                Main.Log("Chart renderer using h264_nvenc preset " + nvencPreset + ".");
+                return "-c:v h264_nvenc -preset " + nvencPreset + " -tune " + tune + " -rc constqp -qp " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+            }
+
+            string x264Preset = GetX264Preset();
+            EncoderName = "libx264 " + x264Preset;
+            Main.Log("Chart renderer using libx264 preset " + x264Preset + ".");
+            return "-c:v libx264 -preset " + Quote(x264Preset) + " -crf " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+        }
+
+        private string GetCustomVideoEncoderArguments()
+        {
+            if (!ForcesCustomCpuEncoder() && IsNvencAvailable())
+            {
+                EncoderName = "h264_nvenc p1";
+                Main.Log("Chart renderer using custom compatibility h264_nvenc.");
+                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+            }
+
+            string x264Preset = GetRealtimePreset();
+            EncoderName = "libx264 " + x264Preset;
+            Main.Log("Chart renderer using custom libx264 preset " + x264Preset + ".");
+            return "-c:v libx264 -preset " + Quote(x264Preset) + " -crf " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
         }
 
         private bool ForcesCpuEncoder()
         {
-            string lowered = preset.ToLowerInvariant();
+            return encoderMode == ChartRenderOptionValues.EncoderCpuCompatibility;
+        }
+
+        private bool ForcesCustomCpuEncoder()
+        {
+            string lowered = customPreset.ToLowerInvariant();
             return lowered == "cpu" || lowered == "x264" || lowered.StartsWith("x264:", StringComparison.Ordinal);
+        }
+
+        private string GetNvencPreset()
+        {
+            switch (encoderMode)
+            {
+                case ChartRenderOptionValues.EncoderFastest:
+                    return "p1";
+                case ChartRenderOptionValues.EncoderQuality:
+                    return "p6";
+                case ChartRenderOptionValues.EncoderBalanced:
+                case ChartRenderOptionValues.EncoderAutoBalanced:
+                default:
+                    return "p4";
+            }
+        }
+
+        private string GetX264Preset()
+        {
+            switch (encoderMode)
+            {
+                case ChartRenderOptionValues.EncoderFastest:
+                    return "ultrafast";
+                case ChartRenderOptionValues.EncoderQuality:
+                    return "fast";
+                case ChartRenderOptionValues.EncoderCpuCompatibility:
+                case ChartRenderOptionValues.EncoderBalanced:
+                case ChartRenderOptionValues.EncoderAutoBalanced:
+                default:
+                    return "veryfast";
+            }
+        }
+
+        private int ClampCrf()
+        {
+            return Math.Max(0, Math.Min(51, crf));
         }
 
         private bool IsNvencAvailable()

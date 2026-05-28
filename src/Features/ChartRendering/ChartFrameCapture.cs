@@ -9,6 +9,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly int height;
         private readonly RenderTexture captureTarget;
         private readonly int rowBytes;
+        private readonly TextureFormat readbackFormat;
         private readonly Camera bgStaticCamera;
         private readonly Camera bgCamera;
         private readonly Camera mainCamera;
@@ -20,10 +21,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly bool oldOverlayActive;
         private readonly bool oldQuadActive;
 
-        public ChartFrameCapture(int width, int height)
+        public ChartFrameCapture(int width, int height, string captureFormat, bool showPreview)
         {
             this.height = height;
             rowBytes = width * 4;
+            readbackFormat = ResolveReadbackFormat(captureFormat);
+            PixelFormatName = readbackFormat.ToString() == "BGRA32" ? "bgra" : "rgba";
 
             scrCamera camera = scrCamera.instance;
             if (camera == null)
@@ -60,15 +63,15 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             mainCamera.targetTexture = captureTarget;
             if (camera.Overlaycam != null)
             {
-                camera.Overlaycam.gameObject.SetActive(true);
+                camera.Overlaycam.gameObject.SetActive(showPreview);
             }
 
             if (camera.quad != null)
             {
-                camera.quad.SetActive(true);
+                camera.quad.SetActive(showPreview);
             }
 
-            if (quadRenderer != null)
+            if (showPreview && quadRenderer != null)
             {
                 quadRenderer.material.mainTexture = captureTarget;
             }
@@ -76,12 +79,16 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             ChartRenderDiagnostics.Log("Frame capture camera chain: Bgcamstatic="
                 + CameraName(bgStaticCamera) + ", BGcam=" + CameraName(bgCamera)
                 + ", camobj=" + CameraName(mainCamera)
-                + ", scene=" + ADOBase.sceneName + ".");
+                + ", scene=" + ADOBase.sceneName
+                + ", readback=" + PixelFormatName
+                + ", preview=" + showPreview + ".");
         }
+
+        public string PixelFormatName { get; }
 
         public PendingFrame RequestFrame(int index, int repeatCount = 1)
         {
-            return new PendingFrame(index, repeatCount, AsyncGPUReadback.Request(captureTarget, 0, TextureFormat.RGBA32), rowBytes, height);
+            return new PendingFrame(index, repeatCount, AsyncGPUReadback.Request(captureTarget, 0, readbackFormat), rowBytes, height);
         }
 
         public void Dispose()
@@ -119,6 +126,28 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private static string CameraName(Camera camera)
         {
             return camera == null ? "<null>" : camera.name + "(depth=" + camera.depth + ")";
+        }
+
+        private static TextureFormat ResolveReadbackFormat(string captureFormat)
+        {
+            if (ChartRenderOptionValues.NormalizeCaptureFormat(captureFormat) != ChartRenderOptionValues.CaptureBgra)
+            {
+                return TextureFormat.RGBA32;
+            }
+
+            try
+            {
+                if (Enum.IsDefined(typeof(TextureFormat), "BGRA32"))
+                {
+                    return (TextureFormat)Enum.Parse(typeof(TextureFormat), "BGRA32");
+                }
+            }
+            catch
+            {
+            }
+
+            ChartRenderDiagnostics.Log("BGRA32 readback is not available in this Unity runtime; falling back to RGBA32.");
+            return TextureFormat.RGBA32;
         }
 
         public sealed class PendingFrame

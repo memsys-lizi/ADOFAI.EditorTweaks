@@ -418,10 +418,17 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
         private void DrawRenderOverlay(ChartRenderSession activeSession)
         {
-            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.72f));
+            string previewMode = ChartRenderOptionValues.NormalizePreviewMode(Main.Settings.ChartRenderPreviewMode);
+            float dimAlpha = previewMode == ChartRenderOptionValues.PreviewFull ? 0.72f : 0.86f;
+            if (previewMode == ChartRenderOptionValues.PreviewMinimal)
+            {
+                dimAlpha = 0.96f;
+            }
 
-            float width = Mathf.Min(560f, Screen.width - 48f);
-            float height = 260f;
+            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, dimAlpha));
+
+            float width = Mathf.Min(620f, Screen.width - 48f);
+            float height = 324f;
             Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
             DrawRect(panel, new Color(0.05f, 0.06f, 0.07f, 0.96f));
             DrawRect(new Rect(panel.x, panel.y, panel.width, 1f), new Color(0.65f, 0.82f, 0.86f, 0.82f));
@@ -445,6 +452,8 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             GUI.Label(new Rect(panel.x + 24f, panel.y + 166f, panel.width - 48f, 22f), $"处理速度: {activeSession.ProcessingFps:0.0} 帧/秒（只影响等待时间，不等于成品帧率）", labelStyle);
             GUI.Label(new Rect(panel.x + 24f, panel.y + 188f, panel.width - 48f, 22f), $"重复帧: {activeSession.DuplicateFrames} ({duplicatePercent:0.00}%) - {FormatSmoothness(activeSession.SmoothnessText)}", labelStyle);
             GUI.Label(new Rect(panel.x + 24f, panel.y + 210f, panel.width - 48f, 22f), $"预计剩余: {activeSession.EstimatedRemaining:hh\\:mm\\:ss}", labelStyle);
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 232f, panel.width - 48f, 22f), $"内存: {activeSession.MemoryBudgetText}", labelStyle);
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 254f, panel.width - 48f, 22f), $"队列: {activeSession.QueueBudgetText}", labelStyle);
             if (GUI.Button(new Rect(panel.x + panel.width - 144f, panel.y + panel.height - 46f, 120f, 30f), Settings.Text("chartRendererCancel"), buttonStyle))
             {
                 activeSession.Cancel();
