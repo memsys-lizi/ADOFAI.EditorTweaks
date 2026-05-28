@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using UnityEngine;
 using UnityModManagerNet;
@@ -14,6 +15,9 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
     {
         private const int MaxPendingGpuFrames = 8;
         private const double CompletionFallbackSeconds = 30.0;
+
+        private static readonly FieldInfo? WaitForStartCoCallCountField =
+            typeof(scrController).GetField("waitForStartCoCallCount", BindingFlags.Instance | BindingFlags.NonPublic);
 
         private readonly UnityModManager.ModEntry modEntry;
         private readonly Settings settings;
@@ -30,7 +34,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private double renderDurationSeconds = 1.0;
         private string tempDirectory = string.Empty;
         private string tempVideoPath = string.Empty;
-        private string songAudioPath = string.Empty;
         private string capturedAudioPath = string.Empty;
         private string outputPath = string.Empty;
         private RenderState? savedState;
@@ -140,10 +143,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             yield return null;
 
-            if (!TryStartOfficialPlayback(out failure))
+            if (!TryStartPlayback(out failure))
             {
                 result.Success = false;
-                result.Message = failure?.Message ?? "Failed to start editor playback.";
+                result.Message = failure?.Message ?? "Failed to start level playback.";
                 Cleanup(frameCapture, encoder, restoreEditor: true, deleteTemp: true);
                 Finish(onComplete, result);
                 yield break;
@@ -386,6 +389,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             IsActive = false;
             IsRendering = false;
             ChartRenderVisualClock.End();
+            RestoreState();
             ChartRenderDiagnostics.End();
             pendingFrames.Clear();
             onComplete(result);
@@ -479,7 +483,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 Directory.CreateDirectory(tempDirectory);
                 tempVideoPath = Path.Combine(tempDirectory, "temp_video.mp4");
                 capturedAudioPath = Path.Combine(tempDirectory, "audio.wav");
-                songAudioPath = GetSongAudioPath();
                 ChartRenderDiagnostics.Begin(Path.Combine(tempDirectory, "render.log"));
 
                 string levelName = GetLevelName();
@@ -489,7 +492,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }, out failure);
         }
 
-        private bool TryStartOfficialPlayback(out Exception? failure)
+        private bool TryStartPlayback(out Exception? failure)
         {
             return Try(() =>
             {
@@ -497,20 +500,124 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
-                GCS.checkpointNum = 0;
-                ChartRenderDiagnostics.Log("Starting official editor playback for render.");
 
-                scnEditor editor = ADOBase.editor;
-                if (editor == null || editor.floors == null || editor.floors.Count <= 1)
+                if (ADOBase.editor != null)
                 {
-                    throw new InvalidOperationException("The editor has no playable level loaded.");
+                    StartEditorPlayback();
+                    return;
                 }
 
-                editor.SelectFloor(editor.floors[0], cameraJump: false);
-                RDC.auto = false;
-                editor.Play();
-                RDC.auto = true;
+                StartGameScenePlayback();
             }, out failure);
+        }
+
+        private static void StartEditorPlayback()
+        {
+            ChartRenderDiagnostics.Log("Starting official editor playback for render.");
+            scnEditor editor = ADOBase.editor;
+            if (editor == null || editor.floors == null || editor.floors.Count <= 1)
+            {
+                throw new InvalidOperationException("The editor has no playable level loaded.");
+            }
+
+            editor.SelectFloor(editor.floors[0], cameraJump: false);
+            GCS.checkpointNum = 0;
+            RDC.auto = false;
+            editor.Play();
+            RDC.auto = true;
+        }
+
+        private static void StartGameScenePlayback()
+        {
+            scrController controller = ADOBase.controller;
+            if (controller == null || !IsPlayableLevelLoaded())
+            {
+                throw new InvalidOperationException("No playable game level is loaded.");
+            }
+
+            ChartRenderDiagnostics.Log("Starting game scene playback for render. scene=" + ADOBase.sceneName
+                + " level=" + (controller.levelName ?? string.Empty)
+                + " scnGame=" + (ADOBase.customLevel != null)
+                + " state=" + controller.state);
+
+            RDC.auto = true;
+            if (IsPlaybackScheduled())
+            {
+                ChartRenderDiagnostics.Log("Game scene playback is already scheduled; capturing current timeline.");
+                return;
+            }
+
+            GCS.checkpointNum = 0;
+            AbortWaitingForStartCoroutine(controller);
+            HidePressToStart();
+            scrUIController.instance?.txtCountdown?.GetComponent<scrCountdown>()?.ShowGetReady();
+            ADOBase.conductor.Rewind();
+            ADOBase.conductor.Start();
+
+            int checkpoint = Math.Max(0, GCS.checkpointNum);
+            controller.Start_Rewind(checkpoint);
+
+            scnGame? gameLevel = ADOBase.customLevel;
+            if (gameLevel != null)
+            {
+                gameLevel.FinishCustomLevelLoading(checkpoint);
+            }
+        }
+
+        private static void AbortWaitingForStartCoroutine(scrController controller)
+        {
+            if (WaitForStartCoCallCountField == null)
+            {
+                ChartRenderDiagnostics.Log("waitForStartCoCallCount field was not found; continuing without canceling the waiting coroutine.");
+                return;
+            }
+
+            object raw = WaitForStartCoCallCountField.GetValue(controller);
+            int value = raw is int intValue ? intValue : 0;
+            WaitForStartCoCallCountField.SetValue(controller, value + 1);
+        }
+
+        private static void HidePressToStart()
+        {
+            try
+            {
+                scrUIController.instance?.txtPressToStart?.GetComponent<scrPressToStart>()?.HideText();
+            }
+            catch (Exception ex)
+            {
+                ChartRenderDiagnostics.Log("Failed to hide press-to-start text: " + ex.Message);
+            }
+        }
+
+        internal static bool IsPlayableLevelLoaded()
+        {
+            if (ADOBase.editor != null)
+            {
+                scnEditor editor = ADOBase.editor;
+                scnGame? editorLevel = editor.customLevel;
+                return !editor.isLoading
+                    && editorLevel != null
+                    && editorLevel.levelData != null
+                    && editor.floors != null
+                    && editor.floors.Count > 1;
+            }
+
+            scrController controller = ADOBase.controller;
+            List<scrFloor>? floors = ADOBase.lm == null ? null : ADOBase.lm.listFloors;
+            if (controller == null || !controller.gameworld || floors == null || floors.Count <= 1)
+            {
+                return false;
+            }
+
+            scnGame gameLevel = ADOBase.customLevel;
+            return gameLevel == null || (!gameLevel.isLoading && gameLevel.levelData != null);
+        }
+
+        internal static bool HasRenderableAudio()
+        {
+            return ADOBase.conductor != null
+                && ADOBase.conductor.song != null
+                && ADOBase.conductor.song.clip != null;
         }
 
         private double CalculateTotalDuration()
@@ -523,6 +630,22 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             return Math.Max(1.0, duration);
+        }
+
+        private static bool IsPlaybackScheduled()
+        {
+            if (ADOBase.conductor == null)
+            {
+                return false;
+            }
+
+            if (ADOBase.conductor.hasSongStarted)
+            {
+                return true;
+            }
+
+            return ADOBase.controller != null
+                && (ADOBase.controller.state == States.Countdown || ADOBase.controller.state == States.PlayerControl);
         }
 
         private bool HasReachedLevelEnd()
@@ -552,22 +675,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             scrFloor currentFloor = controller.currFloor;
             return currentFloor != null && currentFloor.seqID >= lastSeqId;
-        }
-
-        private bool IsPlaybackScheduled()
-        {
-            if (ADOBase.conductor == null)
-            {
-                return false;
-            }
-
-            if (ADOBase.conductor.hasSongStarted)
-            {
-                return true;
-            }
-
-            return ADOBase.controller != null
-                && (ADOBase.controller.state == States.Countdown || ADOBase.controller.state == States.PlayerControl);
         }
 
         private double GetFrameTime(int index)
@@ -655,9 +762,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             try
             {
-                if (ADOBase.editor != null && !ADOBase.editor.inStrictlyEditingMode)
+                scnEditor editor = ADOBase.editor;
+                if (editor != null && (editor.playMode || !editor.inStrictlyEditingMode))
                 {
-                    ADOBase.editor.SwitchToEditMode();
+                    editor.SwitchToEditMode();
                 }
             }
             catch (Exception ex)
@@ -666,34 +774,6 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             savedState.Restore();
-        }
-
-        private string GetSongAudioPath()
-        {
-            scnGame level = ADOBase.editor != null ? ADOBase.editor.customLevel : ADOBase.customLevel;
-            if (level == null || level.levelData == null)
-            {
-                throw new InvalidOperationException("No custom level is loaded.");
-            }
-
-            string songFilename = level.levelData.songFilename;
-            if (string.IsNullOrWhiteSpace(songFilename))
-            {
-                throw new InvalidOperationException("The loaded level does not have a song filename.");
-            }
-
-            string levelDirectory = string.IsNullOrWhiteSpace(level.levelPath)
-                ? string.Empty
-                : Path.GetDirectoryName(level.levelPath) ?? string.Empty;
-            string path = Path.IsPathRooted(songFilename)
-                ? songFilename
-                : Path.Combine(levelDirectory, songFilename);
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException("Song file was not found.", path);
-            }
-
-            return path;
         }
 
         private string GetLevelName()
@@ -711,6 +791,25 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 {
                     return Path.GetFileNameWithoutExtension(level.levelPath);
                 }
+            }
+
+            scrController controller = ADOBase.controller;
+            if (controller != null)
+            {
+                if (!string.IsNullOrWhiteSpace(controller.caption))
+                {
+                    return controller.caption;
+                }
+
+                if (!string.IsNullOrWhiteSpace(controller.levelName))
+                {
+                    return controller.levelName;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(ADOBase.sceneName))
+            {
+                return ADOBase.sceneName;
             }
 
             return "ADOFAI_Render";

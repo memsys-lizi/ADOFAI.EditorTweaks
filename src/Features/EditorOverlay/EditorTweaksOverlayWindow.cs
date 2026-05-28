@@ -16,6 +16,8 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private const float OldDefaultY = 96f;
 
         private static EditorTweaksOverlayWindow? instance;
+        private static bool mouseCapturedByOverlay;
+        private static int mouseCaptureReleaseFrame = -1;
 
         private Rect windowRect;
         private GUIStyle? windowStyle;
@@ -59,6 +61,63 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
             Object.Destroy(instance.gameObject);
             instance = null;
+            mouseCapturedByOverlay = false;
+            mouseCaptureReleaseFrame = -1;
+        }
+
+        public static bool IsRenderOverlayActive => ChartRenderSession.IsRendering
+            || (instance != null && instance.chartRenderSession != null && instance.chartRenderSession.IsActive);
+
+        public static bool ShouldBlockEditorInput()
+        {
+            return IsRenderOverlayActive || ShouldBlockMouseInput();
+        }
+
+        public static bool ShouldBlockUnityUiInput()
+        {
+            return IsRenderOverlayActive || ShouldBlockMouseInput();
+        }
+
+        public static bool ShouldBlockGameplayInput()
+        {
+            return IsRenderOverlayActive;
+        }
+
+        public static bool ShouldBlockMouseInput()
+        {
+            if (mouseCaptureReleaseFrame >= 0 && Time.frameCount > mouseCaptureReleaseFrame)
+            {
+                mouseCapturedByOverlay = false;
+                mouseCaptureReleaseFrame = -1;
+            }
+
+            if (instance == null || !ShouldDraw())
+            {
+                mouseCapturedByOverlay = false;
+                mouseCaptureReleaseFrame = -1;
+                return false;
+            }
+
+            bool insideOverlay = instance.IsMouseInsideWindow();
+            bool mouseDown = IsAnyMouseButtonDown();
+            bool mouseUp = IsAnyMouseButtonUp();
+            bool mouseHeld = IsAnyMouseButtonHeld();
+            bool mouseActivity = mouseDown || mouseUp || mouseHeld || HasMouseWheelActivity();
+
+            if (mouseDown)
+            {
+                mouseCapturedByOverlay = insideOverlay;
+            }
+
+            bool capturedThisFrame = mouseCapturedByOverlay || mouseCaptureReleaseFrame == Time.frameCount;
+            bool block = mouseActivity && (insideOverlay || capturedThisFrame);
+
+            if (mouseUp && mouseCapturedByOverlay && !mouseHeld)
+            {
+                mouseCaptureReleaseFrame = Time.frameCount;
+            }
+
+            return block;
         }
 
         private void Awake()
@@ -86,17 +145,22 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             ClampToScreen();
 
             Rect oldRect = windowRect;
+            bool renderModalActive = chartRenderSession != null && chartRenderSession.IsActive;
             GUI.depth = -900;
-            if (chartRenderSession != null && chartRenderSession.IsActive)
-            {
-                DrawRenderOverlay(chartRenderSession);
-            }
 
+            bool oldGuiEnabled = GUI.enabled;
+            GUI.enabled = oldGuiEnabled && !renderModalActive;
             windowRect = GUI.Window(WindowId, windowRect, DrawWindow, GUIContent.none, windowStyle);
+            GUI.enabled = oldGuiEnabled;
             windowRect.width = GetWindowWidth();
             windowRect.height = Main.Settings.EditorOverlayCollapsed ? CollapsedHeight : ExpandedHeight;
 
-            if (Vector2.Distance(oldRect.position, windowRect.position) > 0.1f)
+            if (renderModalActive)
+            {
+                DrawRenderOverlay(chartRenderSession!);
+            }
+
+            if (!renderModalActive && Vector2.Distance(oldRect.position, windowRect.position) > 0.1f)
             {
                 Main.Settings.EditorOverlayX = windowRect.x;
                 Main.Settings.EditorOverlayY = windowRect.y;
@@ -111,11 +175,40 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return false;
             }
 
-            return (ADOBase.isEditingLevel && ADOBase.editor != null) || ChartRenderSession.IsRendering;
+            return (ADOBase.isEditingLevel && ADOBase.editor != null)
+                || ChartRenderSession.IsPlayableLevelLoaded()
+                || ChartRenderSession.IsRendering;
+        }
+
+        private bool IsMouseInsideWindow()
+        {
+            Vector2 guiMouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            return windowRect.Contains(guiMouse);
+        }
+
+        private static bool IsAnyMouseButtonDown()
+        {
+            return Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2);
+        }
+
+        private static bool IsAnyMouseButtonHeld()
+        {
+            return Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2);
+        }
+
+        private static bool IsAnyMouseButtonUp()
+        {
+            return Input.GetMouseButtonUp(0) || Input.GetMouseButtonUp(1) || Input.GetMouseButtonUp(2);
+        }
+
+        private static bool HasMouseWheelActivity()
+        {
+            return Mathf.Abs(Input.mouseScrollDelta.x) > 0.01f || Mathf.Abs(Input.mouseScrollDelta.y) > 0.01f;
         }
 
         private void DrawWindow(int id)
         {
+            bool blockWindowInput = IsRenderOverlayActive;
             float width = windowRect.width;
             drawWidth = width;
             DrawRect(new Rect(0f, 40f, width, Mathf.Max(0f, windowRect.height - 40f)), new Color(0.075f, 0.083f, 0.092f, 0.98f));
@@ -126,7 +219,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
             GUI.Label(new Rect(26f, 8f, width - 78f, 24f), Settings.Text("overlayTitle"), titleStyle);
             string collapseText = Main.Settings.EditorOverlayCollapsed ? "+" : "-";
-            if (GUI.Button(new Rect(width - 42f, 8f, 26f, 24f), collapseText, buttonStyle))
+            if (!blockWindowInput && GUI.Button(new Rect(width - 42f, 8f, 26f, 24f), collapseText, buttonStyle))
             {
                 Main.Settings.EditorOverlayCollapsed = !Main.Settings.EditorOverlayCollapsed;
                 windowRect.height = Main.Settings.EditorOverlayCollapsed ? CollapsedHeight : ExpandedHeight;
@@ -135,7 +228,11 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
             if (Main.Settings.EditorOverlayCollapsed)
             {
-                GUI.DragWindow(new Rect(0f, 0f, width - 42f, CollapsedHeight));
+                if (!blockWindowInput)
+                {
+                    GUI.DragWindow(new Rect(0f, 0f, width - 42f, CollapsedHeight));
+                }
+
                 return;
             }
 
@@ -165,7 +262,10 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
 
             GUI.EndScrollView();
             drawWidth = width;
-            GUI.DragWindow(new Rect(0f, 0f, width - 42f, 40f));
+            if (!blockWindowInput)
+            {
+                GUI.DragWindow(new Rect(0f, 0f, width - 42f, 40f));
+            }
         }
 
         private void DrawSectionLabel(string text, float y, string? hint = null)
@@ -291,18 +391,18 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private static string GetChartRenderDisabledReason()
         {
             scnEditor editor = ADOBase.editor;
-            scnGame? level = editor != null ? editor.customLevel : null;
-            if (editor == null
-                || editor.isLoading
-                || level == null
-                || level.levelData == null
-                || editor.floors == null
-                || editor.floors.Count <= 1)
+            if (!ChartRenderSession.IsPlayableLevelLoaded())
             {
                 return Settings.Text("chartRendererMissingLevel");
             }
 
-            if (string.IsNullOrEmpty(level.levelData.songFilename))
+            scnGame? level = editor != null ? editor.customLevel : null;
+            if (editor != null && (level == null || level.levelData == null || string.IsNullOrEmpty(level.levelData.songFilename)))
+            {
+                return Settings.Text("chartRendererMissingSong");
+            }
+
+            if (editor == null && !ChartRenderSession.HasRenderableAudio())
             {
                 return Settings.Text("chartRendererMissingSong");
             }
