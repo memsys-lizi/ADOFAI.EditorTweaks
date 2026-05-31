@@ -237,7 +237,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             }
 
             Rect scrollRect = new Rect(0f, 48f, width, windowRect.height - 56f);
-            Rect viewRect = new Rect(0f, 0f, width - 16f, 432f);
+            Rect viewRect = new Rect(0f, 0f, width - 16f, 468f);
             scrollPosition = GUI.BeginScrollView(scrollRect, scrollPosition, viewRect, false, true);
             drawWidth = viewRect.width;
 
@@ -331,7 +331,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private void DrawChartRenderPanel(float y)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            Rect panelRect = new Rect(20f, y, width - 40f, 150f);
+            Rect panelRect = new Rect(20f, y, width - 40f, 180f);
             GUI.Box(panelRect, GUIContent.none, rowStyle);
             DrawRect(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
 
@@ -355,8 +355,16 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 SaveSettings();
             }
 
+            Rect rangeToggleRect = new Rect(panelRect.x + 14f, panelRect.y + 94f, panelRect.width - 28f, 24f);
+            bool useSelectedRange = GUI.Toggle(rangeToggleRect, Main.Settings.ChartRenderUseSelectedRange, Settings.Text("chartRenderUseSelectedRange"), toggleStyle);
+            if (useSelectedRange != Main.Settings.ChartRenderUseSelectedRange)
+            {
+                Main.Settings.ChartRenderUseSelectedRange = useSelectedRange;
+                SaveSettings();
+            }
+
             GUI.enabled = canRender;
-            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 106f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
+            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 136f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
             {
                 StartChartRender();
             }
@@ -370,7 +378,20 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             int bitrate = ChartRenderBitratePresets.ResolveTargetBitrateMbps(settings.ChartRenderBitrateMbps, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps);
             return settings.ChartRenderWidth + "x" + settings.ChartRenderHeight
                 + " @ " + settings.ChartRenderFps + "fps"
-                + " | " + bitrate + " Mbps";
+                + " | " + bitrate + " Mbps"
+                + " | " + GetChartRenderRangeText();
+        }
+
+        private static string GetChartRenderRangeText()
+        {
+            if (!Main.Settings.ChartRenderUseSelectedRange)
+            {
+                return Settings.Text("chartRenderSelectedRangeWholeLevel");
+            }
+
+            return ChartRenderRange.TryGetEditorSelectedRange(out int startFloor, out int endFloor, out _)
+                ? Settings.Text("chartRenderSelectedRangeActive") + " " + startFloor + " - " + endFloor
+                : Settings.Text("chartRendererSelectedRangeMissing");
         }
 
         private void StartChartRender()
@@ -407,6 +428,11 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             if (editor == null && !ChartRenderSession.HasRenderableAudio())
             {
                 return Settings.Text("chartRendererMissingSong");
+            }
+
+            if (Main.Settings.ChartRenderUseSelectedRange && !ChartRenderRange.TryGetEditorSelectedRange(out _, out _, out _))
+            {
+                return Settings.Text("chartRendererSelectedRangeMissing");
             }
 
             string ffmpeg = ChartRenderPaths.GetFfmpegPath();

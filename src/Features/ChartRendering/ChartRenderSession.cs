@@ -25,6 +25,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private string capturedAudioPath = string.Empty;
         private string outputPath = string.Empty;
         private ChartUnityAudioCapture? audioCapture;
+        private ChartRenderRange renderRange = ChartRenderRange.WholeLevel();
+        private bool renderAutoPlaybackEnabled;
 
         public ChartRenderSession(UnityModManager.ModEntry modEntry, Settings settings)
         {
@@ -38,6 +40,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public static bool IsRendering { get; private set; }
 
         public static bool IsAutoPlaybackReady { get; private set; }
+
+        public static int AutoPlaybackEndFloor { get; private set; } = int.MaxValue;
 
         public float Progress => progress.Progress;
 
@@ -75,6 +79,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             IsActive = true;
             IsRendering = true;
             IsAutoPlaybackReady = false;
+            AutoPlaybackEndFloor = int.MaxValue;
+            renderAutoPlaybackEnabled = false;
             progress.Reset();
             MemoryBudgetText = string.Empty;
             QueueBudgetText = string.Empty;
@@ -135,9 +141,50 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 yield break;
             }
 
+            if (renderRange.IsPartial)
+            {
+                int readyWaitFrames = 0;
+                int readyWaitLimit = settings.ChartRenderFps * 20;
+                while (!cancelRequested && readyWaitFrames < readyWaitLimit && !IsPartialRangeCaptureReady())
+                {
+                    readyWaitFrames++;
+                    StageText = Settings.Text("chartRendererWaitingRangeStart");
+                    DetailText = renderRange.DisplayText;
+                    yield return null;
+                }
+
+                if (cancelRequested)
+                {
+                    result.Success = false;
+                    result.Message = "Canceled.";
+                    Cleanup(frameCapture, encoder, restoreEditor: true, deleteTemp: true);
+                    Finish(onComplete, result);
+                    yield break;
+                }
+
+                if (!IsPartialRangeCaptureReady())
+                {
+                    result.Success = false;
+                    result.Message = Settings.Text("chartRendererRangeStartTimeout");
+                    Cleanup(frameCapture, encoder, restoreEditor: true, deleteTemp: true);
+                    Finish(onComplete, result);
+                    yield break;
+                }
+
+                StageText = Settings.Text("chartRendererRendering");
+                DetailText = Path.GetFileName(outputPath);
+                WriteLog("Partial range capture begins. state=" + (ADOBase.controller == null ? "null" : ADOBase.controller.state.ToString())
+                    + " songposition=" + Number(ADOBase.conductor == null ? double.NaN : ADOBase.conductor.songposition_minusi)
+                    + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
+                    + " floor=" + GetPrimaryPlayerFloor() + ".");
+            }
+
             Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
             Application.targetFrameRate = Math.Max(1000, settings.ChartRenderFps * 4);
 
+            int fps = Math.Max(1, settings.ChartRenderFps);
+            double completionTailSeconds = GetEffectiveCompletionTailSeconds();
+            int completionTailFrames = Mathf.Max(0, Mathf.CeilToInt((float)(completionTailSeconds * fps)));
             if (!Try(() =>
             {
                 ChartRenderMemoryBudget budget = ChartRenderMemoryBudget.Create(settings.ChartRenderWidth, settings.ChartRenderHeight);
@@ -145,7 +192,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 QueueBudgetText = budget.QueueSummary;
                 bool showPreview = ChartRenderOptionValues.NormalizePreviewMode(settings.ChartRenderPreviewMode) != ChartRenderOptionValues.PreviewMinimal;
                 renderDurationSeconds = CalculateTotalDuration();
-                int totalFrames = Math.Max(1, Mathf.CeilToInt((float)(renderDurationSeconds * settings.ChartRenderFps)));
+                int totalFrames = Math.Max(1, Mathf.CeilToInt((float)(renderDurationSeconds * fps)));
                 progress.SetTotalFrames(totalFrames);
                 frameCapture = new ChartFrameCapture(settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderCaptureFormat, showPreview);
                 audioCapture = new ChartUnityAudioCapture(capturedAudioPath);
@@ -169,6 +216,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 EncoderName = encoder.EncoderName;
                 BeginForcedVisualClock();
                 SetForcedFrameTimeFromAudioCursor(0);
+                AutoPlaybackEndFloor = renderRange.AutoPlaybackEndFloor;
                 EnableRenderAutoPlayback();
                 ChartRenderDiagnostics.LogFrame(0, 0);
             }, out failure))
@@ -182,10 +230,9 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             int requestedFrames = 0;
             int completionFrame = -1;
-            int fps = Math.Max(1, settings.ChartRenderFps);
-            int completionTailFrames = Mathf.Max(0, Mathf.CeilToInt(Mathf.Max(0f, settings.ChartRenderCompletionTailSeconds) * fps));
             int fallbackExtraFrames = Math.Max(completionTailFrames, Mathf.CeilToInt((float)(CompletionFallbackSeconds * fps)));
             int renderFrameLimit = progress.TotalFrames + fallbackExtraFrames;
+            bool estimateExpandedToFallback = false;
             WriteLog("Render estimate: " + progress.TotalFrames + " frames, fallback limit: " + renderFrameLimit + " frames. " + MemoryBudgetText + "; " + QueueBudgetText);
             DetailText = Path.GetFileName(outputPath);
             yield return null;
@@ -216,13 +263,27 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     if (completionFrame < 0 && HasReachedLevelEnd())
                     {
                         completionFrame = requestedFrames;
+                        if (renderRange.IsPartial)
+                        {
+                            PauseRenderAutoPlaybackForTail();
+                        }
+                        else
+                        {
+                            DisableRenderAutoPlayback(resetEndFloor: false);
+                        }
+
                         renderFrameLimit = completionFrame + completionTailFrames;
                         progress.SetTotalFrames(renderFrameLimit);
                         WriteLog("Level end detected at frame " + completionFrame + "; rendering tail to frame " + renderFrameLimit + ".");
                     }
                     else if (completionFrame < 0 && requestedFrames >= progress.TotalFrames)
                     {
-                        progress.SetTotalFrames(Math.Min(renderFrameLimit, requestedFrames + fps * 2));
+                        if (!estimateExpandedToFallback)
+                        {
+                            estimateExpandedToFallback = true;
+                            progress.SetTotalFrames(renderFrameLimit);
+                            WriteLog("Render estimate reached before end detection; using fallback frame limit " + renderFrameLimit + ".");
+                        }
                     }
                 }, out failure))
                 {
@@ -369,7 +430,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private void Finish(Action<ChartRenderResult> onComplete, ChartRenderResult result)
         {
-            IsAutoPlaybackReady = false;
+            DisableRenderAutoPlayback(resetEndFloor: true);
             IsActive = false;
             IsRendering = false;
             ChartRenderVisualClock.End();
@@ -405,27 +466,57 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 tempVideoPath = Path.Combine(tempDirectory, "temp_video.mp4");
                 capturedAudioPath = Path.Combine(tempDirectory, "audio.wav");
                 ChartRenderDiagnostics.Begin(Path.Combine(tempDirectory, "render.log"));
+                renderRange = ChartRenderRange.CreateFromSettings(settings);
 
                 string levelName = GetLevelName();
-                string fileName = ChartRenderPaths.MakeSafeFileName(levelName) + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".mp4";
+                string fileName = ChartRenderPaths.MakeSafeFileName(levelName)
+                    + renderRange.FileNameSuffix
+                    + "_"
+                    + DateTime.Now.ToString("yyyyMMdd_HHmmss")
+                    + ".mp4";
                 outputPath = Path.Combine(export, fileName);
                 result.OutputPath = outputPath;
+                WriteLog("Render range: " + renderRange.DisplayText
+                    + " start=" + renderRange.StartFloor
+                    + " end=" + renderRange.EndFloor
+                    + " selectedCount=" + renderRange.FloorCount + ".");
             }, out failure);
         }
 
         private bool TryStartPlayback(out Exception? failure)
         {
-            return Try(() => playbackController.StartPlayback(), out failure);
+            return Try(() => playbackController.StartPlayback(renderRange), out failure);
         }
 
         private void EnableRenderAutoPlayback()
         {
             RDC.auto = true;
             IsAutoPlaybackReady = true;
+            renderAutoPlaybackEnabled = true;
             WriteLog("Render auto playback enabled after visual clock anchor. songposition="
                 + Number(ADOBase.conductor == null ? double.NaN : ADOBase.conductor.songposition_minusi)
                 + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
                 + " floor=" + GetPrimaryPlayerFloor() + ".");
+        }
+
+        private void DisableRenderAutoPlayback(bool resetEndFloor)
+        {
+            if (renderAutoPlaybackEnabled)
+            {
+                RDC.auto = false;
+            }
+
+            renderAutoPlaybackEnabled = false;
+            IsAutoPlaybackReady = false;
+            if (resetEndFloor)
+            {
+                AutoPlaybackEndFloor = int.MaxValue;
+            }
+        }
+
+        private void PauseRenderAutoPlaybackForTail()
+        {
+            IsAutoPlaybackReady = false;
         }
 
         internal static bool IsPlayableLevelLoaded()
@@ -440,14 +531,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private double CalculateTotalDuration()
         {
-            double duration = 1.0;
-            if (ADOBase.lm != null && ADOBase.lm.listFloors != null && ADOBase.lm.listFloors.Count > 1)
-            {
-                scrFloor last = ADOBase.lm.listFloors[ADOBase.lm.listFloors.Count - 1];
-                duration = Math.Max(duration, last.entryTimePitchAdj + 2.0);
-            }
+            return renderRange.EstimateDurationSeconds(GetEffectiveCompletionTailSeconds());
+        }
 
-            return Math.Max(1.0, duration);
+        private double GetEffectiveCompletionTailSeconds()
+        {
+            return renderRange.IsPartial ? 0.0 : Math.Max(0f, settings.ChartRenderCompletionTailSeconds);
         }
 
         private static bool IsPlaybackScheduled()
@@ -455,33 +544,37 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             return ChartRenderPlaybackController.IsPlaybackScheduled();
         }
 
+        private bool IsPartialRangeCaptureReady()
+        {
+            if (!renderRange.IsPartial)
+            {
+                return true;
+            }
+
+            scrController controller = ADOBase.controller;
+            scrConductor conductor = ADOBase.conductor;
+            if (controller == null || conductor == null || !conductor.hasSongStarted)
+            {
+                return false;
+            }
+
+            if (controller.state != States.PlayerControl)
+            {
+                return false;
+            }
+
+            scrFloor? floor = controller.playerOne == null ? null : controller.playerOne.currFloor;
+            if (floor == null)
+            {
+                return false;
+            }
+
+            return floor.seqID >= Math.Max(0, renderRange.StartFloor - 1);
+        }
+
         private bool HasReachedLevelEnd()
         {
-            scrController controller = ADOBase.controller;
-            if (controller == null || ADOBase.conductor == null || !ADOBase.conductor.hasSongStarted)
-            {
-                return false;
-            }
-
-            if (controller.state == States.Won)
-            {
-                return true;
-            }
-
-            List<scrFloor>? floors = ADOBase.lm == null ? null : ADOBase.lm.listFloors;
-            if (floors == null || floors.Count <= 1)
-            {
-                return false;
-            }
-
-            int lastSeqId = floors.Count - 1;
-            if (controller.currentSeqID >= lastSeqId)
-            {
-                return true;
-            }
-
-            scrFloor currentFloor = controller.currFloor;
-            return currentFloor != null && currentFloor.seqID >= lastSeqId;
+            return renderRange.HasReachedEnd();
         }
 
         private double GetFrameTime(int index)
@@ -642,7 +735,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         private void Cleanup(ChartFrameCapture? frameCapture, FfmpegEncoder? encoder, bool restoreEditor, bool deleteTemp)
         {
-            IsAutoPlaybackReady = false;
+            DisableRenderAutoPlayback(resetEndFloor: true);
             frameCapture?.Dispose();
             encoder?.Dispose();
             audioCapture?.Dispose();

@@ -69,6 +69,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 return false;
             }
 
+            if (current.nextfloor.seqID > ChartRenderSession.AutoPlaybackEndFloor)
+            {
+                return false;
+            }
+
             scrPlanet? planet = player.planetarySystem?.chosenPlanet;
             planet?.Update_RefreshAngles();
 
@@ -132,6 +137,27 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             ChartRenderDiagnostics.RecordAsyncAdjustSuppressed();
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(scrPlayer), nameof(scrPlayer.Hit))]
+    internal static class ChartRenderHitEndFloorPatch
+    {
+        private static bool Prefix(scrPlayer __instance, ref bool __result)
+        {
+            if (!ChartRenderSession.IsRendering || ChartRenderSession.AutoPlaybackEndFloor == int.MaxValue)
+            {
+                return true;
+            }
+
+            scrFloor? current = __instance == null ? null : __instance.currFloor;
+            if (current == null || current.nextfloor == null || current.nextfloor.seqID <= ChartRenderSession.AutoPlaybackEndFloor)
+            {
+                return true;
+            }
+
+            __result = false;
             return false;
         }
     }

@@ -13,11 +13,12 @@
 | 文件 | 职责 |
 | --- | --- |
 | `ChartRenderSession.cs` | 一次渲染的主协程。负责状态机、阶段切换、结束检测、取消和总调度。 |
-| `ChartRenderPlaybackController.cs` | 保存/恢复编辑器状态，选择第 0 格，启动官方播放路径，管理 `RDC.auto` 启用时机。 |
+| `ChartRenderPlaybackController.cs` | 保存/恢复编辑器状态，按整首或片段起点启动官方播放路径，管理 `RDC.auto` 启用时机。 |
 | `ChartRenderFramePipeline.cs` | 管理 GPU readback pending 队列、帧 buffer pool、FFmpeg 写入反压。 |
 | `ChartRenderMemoryBudget.cs` | 按输出分辨率计算单帧大小、内存预算、GPU pending 上限和 FFmpeg 队列上限。 |
 | `ChartRenderProgressModel.cs` | 计算进度、处理速度、ETA、重复帧比例和流畅度提示。 |
 | `ChartRenderOptionValues.cs` | 统一管理编码档位、回读格式、预览模式等设置值。 |
+| `ChartRenderRange.cs` | 解析整首/选中段落渲染范围，估算片段时长，提供片段结束检测。 |
 | `ChartFrameCapture.cs` | 使用官方 `scrCamera` 相机链捕获画面到 `RenderTexture`，并用 `AsyncGPUReadback` 异步读回。 |
 | `ChartUnityAudioCapture.cs` | 使用 Unity `AudioRenderer` 离线捕获音频并写成 float32 WAV。 |
 | `FfmpegEncoder.cs` | FFmpeg rawvideo pipe、GPU/CPU 编码选择、视频完成、音频 mux。 |
@@ -67,12 +68,13 @@ StartCoroutine(chartRenderSession.Run(callback))
    - 清空并重建 `CurrentRender`。
    - 设置 `temp_video.mp4`、`audio.wav`、最终输出路径。
    - 开启 `ChartRenderDiagnostics.Begin(render.log)`。
+   - 根据设置解析渲染范围：整首谱面，或编辑器当前选中的连续砖块段落。
 3. `TryStartPlayback()`：
    - `ChartRenderPlaybackController` 保存旧状态。
    - 设置 `Time.captureFramerate` 为目标 FPS。
    - `QualitySettings.vSyncCount = 0`。
    - `Application.targetFrameRate = max(1000, fps * 4)`。
-   - 编辑器走 `StartEditorPlayback()`。
+   - 编辑器走 `StartEditorPlayback()`，整首从第 0 块开始，片段从选中段落起点开始。
    - 非编辑器走 `StartGameScenePlayback()`。
 4. 等待播放 schedule：
    - conductor 已存在。
@@ -102,15 +104,37 @@ StartCoroutine(chartRenderSession.Run(callback))
 12. 成功后保留临时目录，失败或取消时按路径删除。
 13. `Finish()` 清理 `IsRendering`、视觉时钟、诊断日志并回调 UI。
 
+## 渲染范围
+
+默认渲染整首谱面，保持最稳定的第 0 格启动路径。
+
+开启 `ChartRenderUseSelectedRange` 后，只在编辑器中生效。使用方式：
+
+- 在编辑器里框选至少两个连续砖块。
+- 渲染器读取选中范围的最小 `seqID` 和最大 `seqID`。
+- 官方播放路径从最小 `seqID` 开始。
+- 启动后先等待官方 checkpoint 从 `States.Checkpoint` 切入 `States.PlayerControl`，再开始捕获画面和音频。
+- 当 controller、当前 floor 或玩家 floor 到达最大 `seqID` 后立即停止，不使用 `ChartRenderCompletionTailSeconds`。
+
+片段渲染的关键保护是 `ChartRenderSession.AutoPlaybackEndFloor`。`ChartRenderAutoPlayer` 在命中前会检查 `current.nextfloor.seqID`，超过片段终点就不再补打。`scrPlayer.Hit` 也会阻止任何越过片段终点的命中。这样尾巴录制期间不会继续打到选区后面的砖块。
+
+不能在 `States.Checkpoint` 阶段立刻开始捕获。官方 checkpoint 会把音乐音量设为 0，并在接近 checkpoint 地板时淡入；如果此时开始录制，成品会出现球停在起点、音频从小到大、视频时长超过选区的问题。
+
+片段输出文件名会追加范围后缀，例如：
+
+```text
+SongName_f32-f64_yyyyMMdd_HHmmss.mp4
+```
+
 ## 播放启动策略
 
 ### 编辑器
 
-`StartEditorPlayback()` 使用官方编辑器播放路径：
+`StartEditorPlayback()` 使用官方编辑器播放路径。整首渲染时起点是第 0 块，片段渲染时起点是选中段落的第一个砖块：
 
 ```text
-editor.SelectFloor(editor.floors[0], cameraJump: false)
-GCS.checkpointNum = 0
+editor.SelectFloor(editor.floors[startFloor], cameraJump: false)
+GCS.checkpointNum = startFloor
 RDC.auto = false
 editor.Play()
 RDC.auto = false
@@ -204,6 +228,7 @@ Patch 点：
 
 - `MaxHitsPerFrame = 16`，防止异常情况下无限追块。
 - 每次失败、跳块、达到 guard 都写入 `render.log`。
+- 片段渲染时，Patch `scrPlayer.Hit` 阻止任何命中越过选中段落终点。
 - Patch `AsyncInputUtils.AdjustAngle(scrPlayer, ulong)`：渲染时直接跳过，并记录 suppressed 次数。
 
 如果球又抽搐，优先看 `render.log`：

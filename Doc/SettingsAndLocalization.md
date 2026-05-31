@@ -41,7 +41,7 @@
 | `ChartRenderWidth` | 1920 | 视频宽度。 |
 | `ChartRenderHeight` | 1080 | 视频高度。 |
 | `ChartRenderFps` | 60 | 成品帧率。 |
-| `ChartRenderCrf` | 18 | 画质参数。NVENC 时作为 QP，x264 时作为 CRF。 |
+| `ChartRenderCrf` | 18 | 画质参数。NVENC VBR 时作为 CQ；x264 码率模式主要由码率控制。 |
 | `ChartRenderBitrateMbps` | 0 | 视频目标码率。0 表示按分辨率和帧率自动推荐。 |
 | `ChartRenderPreset` | veryfast | 自定义编码字符串，仅在 `ChartRenderEncoderMode = custom` 时显示。 |
 | `ChartRenderEncoderMode` | auto-balanced | 编码档位。默认优先 GPU，并在失败时回退 CPU。 |
@@ -50,6 +50,7 @@
 | `ChartRenderCompletionTailSeconds` | 5 | 谱面结束后额外录制秒数。 |
 | `ChartRenderAudioSyncOffsetMs` | 0 | 高级兜底音频同步偏移。正数让音频提前，负数让音频延后。 |
 | `ChartRenderShowHitJudgments` | true | 导出时是否显示判定文字。 |
+| `ChartRenderUseSelectedRange` | false | 是否只渲染编辑器当前框选的连续砖块段落。 |
 | `ChartRenderAdvancedSettingsExpanded` | false | UMM 高级渲染设置是否展开。 |
 
 ## UMM 设置 UI
@@ -74,6 +75,7 @@
 - 帧率。
 - 结束后延迟停止秒数。
 - 是否显示判定文字。
+- 是否仅渲染选中段落。开启后需要在编辑器中框选至少两个连续砖块。
 
 高级渲染设置：
 

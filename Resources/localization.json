@@ -351,6 +351,26 @@
       "zh": "控制成品视频里是否显示 Perfect、Early、Late 等判定文字。"
     },
     {
+      "key": "chartRenderUseSelectedRange",
+      "en": "Render selected range only",
+      "zh": "仅渲染选中段落"
+    },
+    {
+      "key": "chartRenderUseSelectedRangeHint",
+      "en": "When enabled, select at least two continuous tiles in the editor. Rendering starts at the first selected tile and stops after the last selected tile.",
+      "zh": "开启后，在编辑器中框选至少两个连续砖块。渲染会从第一个选中砖块开始，并在最后一个选中砖块后停止。"
+    },
+    {
+      "key": "chartRenderSelectedRangeWholeLevel",
+      "en": "Whole level",
+      "zh": "整首谱面"
+    },
+    {
+      "key": "chartRenderSelectedRangeActive",
+      "en": "Selected range",
+      "zh": "选中段落"
+    },
+    {
       "key": "chartRendererTitle",
       "en": "Chart Renderer",
       "zh": "谱面渲染"
@@ -386,9 +406,29 @@
       "zh": "Mod 目录缺少 Tools/ffmpeg.exe。"
     },
     {
+      "key": "chartRendererSelectedRangeMissing",
+      "en": "Select at least two continuous tiles first.",
+      "zh": "请先框选至少两个连续砖块。"
+    },
+    {
+      "key": "chartRendererSelectedRangeEditorOnly",
+      "en": "Selected range rendering is available in the editor only.",
+      "zh": "选中段落渲染只能在编辑器中使用。"
+    },
+    {
       "key": "chartRendererRendering",
       "en": "Rendering video",
       "zh": "正在渲染视频"
+    },
+    {
+      "key": "chartRendererWaitingRangeStart",
+      "en": "Preparing selected range",
+      "zh": "正在准备选中段落"
+    },
+    {
+      "key": "chartRendererRangeStartTimeout",
+      "en": "Timed out while preparing the selected range.",
+      "zh": "准备选中段落超时。"
     },
     {
       "key": "chartRendererMuxing",

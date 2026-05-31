@@ -20,7 +20,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
         public bool PlaybackStartsAtBeginning { get; private set; }
 
-        public void StartPlayback()
+        public void StartPlayback(ChartRenderRange renderRange)
         {
             savedState = RenderState.Capture();
             Time.captureFramerate = Math.Max(1, settings.ChartRenderFps);
@@ -35,8 +35,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             PlaybackStartsAtBeginning = false;
             if (ADOBase.editor != null)
             {
-                StartEditorPlayback();
-                PlaybackStartsAtBeginning = true;
+                StartEditorPlayback(renderRange.StartFloor);
+                PlaybackStartsAtBeginning = renderRange.StartFloor <= 0;
                 return;
             }
 
@@ -126,7 +126,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
         }
 
-        private static void StartEditorPlayback()
+        private static void StartEditorPlayback(int startFloor)
         {
             ChartRenderDiagnostics.Log("Starting official editor playback for render.");
             scnEditor editor = ADOBase.editor;
@@ -135,12 +135,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 throw new InvalidOperationException("The editor has no playable level loaded.");
             }
 
-            editor.SelectFloor(editor.floors[0], cameraJump: false);
-            GCS.checkpointNum = 0;
+            int floor = Mathf.Clamp(startFloor, 0, editor.floors.Count - 1);
+            editor.SelectFloor(editor.floors[floor], cameraJump: false);
+            GCS.checkpointNum = floor;
             RDC.auto = false;
             editor.Play();
             RDC.auto = false;
-            ChartRenderDiagnostics.Log("Editor playback requested from floor 0. checkpoint=" + GCS.checkpointNum
+            ChartRenderDiagnostics.Log("Editor playback requested from floor " + floor + ". checkpoint=" + GCS.checkpointNum
                 + " currentSeq=" + (ADOBase.controller == null ? -1 : ADOBase.controller.currentSeqID)
                 + " playerFloor=" + GetPrimaryPlayerFloor()
                 + " auto=" + RDC.auto + ".");
@@ -245,6 +246,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     }
                 }
 
+                floors.Sort();
                 return new RenderState(RDC.auto, GCS.checkpointNum, Time.captureFramerate, Application.targetFrameRate, QualitySettings.vSyncCount, Persistence.skipIntroBehavior, floors);
             }
 
@@ -262,8 +264,15 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     return;
                 }
 
-                int seqId = Mathf.Clamp(selectedFloors[0], 0, ADOBase.editor.floors.Count - 1);
-                ADOBase.editor.SelectFloor(ADOBase.editor.floors[seqId], cameraJump: false);
+                int firstSeqId = Mathf.Clamp(selectedFloors[0], 0, ADOBase.editor.floors.Count - 1);
+                if (selectedFloors.Count == 1)
+                {
+                    ADOBase.editor.SelectFloor(ADOBase.editor.floors[firstSeqId], cameraJump: false);
+                    return;
+                }
+
+                int lastSeqId = Mathf.Clamp(selectedFloors[selectedFloors.Count - 1], 0, ADOBase.editor.floors.Count - 1);
+                ADOBase.editor.MultiSelectFloors(ADOBase.editor.floors[firstSeqId], ADOBase.editor.floors[lastSeqId], setSelectPoint: true);
             }
         }
     }

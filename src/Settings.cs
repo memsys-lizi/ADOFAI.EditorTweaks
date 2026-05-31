@@ -25,6 +25,7 @@ namespace ADOFAI.EditorTweaks
         private const float MinChartRenderAudioSyncOffsetMs = -5000f;
         private const float MaxChartRenderAudioSyncOffsetMs = 5000f;
         private const bool DefaultChartRenderShowHitJudgments = true;
+        private const bool DefaultChartRenderUseSelectedRange = false;
         private const bool DefaultChartRenderAdvancedSettingsExpanded = false;
         private const string DefaultChartRenderPreset = "veryfast";
         private const string DefaultChartRenderEncoderMode = ChartRenderOptionValues.EncoderAutoBalanced;
@@ -85,6 +86,8 @@ namespace ADOFAI.EditorTweaks
 
         public bool ChartRenderShowHitJudgments = true;
 
+        public bool ChartRenderUseSelectedRange = DefaultChartRenderUseSelectedRange;
+
         public bool ChartRenderAdvancedSettingsExpanded = false;
 
         private static GUIStyle? panelStyle;
@@ -144,6 +147,7 @@ namespace ADOFAI.EditorTweaks
             float oldRenderTail = ChartRenderCompletionTailSeconds;
             float oldRenderAudioSyncOffset = ChartRenderAudioSyncOffsetMs;
             bool oldRenderJudgments = ChartRenderShowHitJudgments;
+            bool oldRenderUseSelectedRange = ChartRenderUseSelectedRange;
             bool oldAdvancedSettingsExpanded = ChartRenderAdvancedSettingsExpanded;
             string oldWorkspaceDirectory = ChartRenderWorkspaceDirectory;
             string oldExportDirectory = ChartRenderExportDirectory;
@@ -180,6 +184,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderFps = DrawIntSettingRow(Text("chartRenderFps"), Text("chartRenderFpsHint"), ChartRenderFps, ref renderFpsText, MinChartRenderFps, MaxChartRenderFps, DefaultChartRenderFps);
             ChartRenderCompletionTailSeconds = DrawFloatSettingRow(Text("chartRenderCompletionTailSeconds"), Text("chartRenderCompletionTailSecondsHint"), ChartRenderCompletionTailSeconds, ref renderTailSecondsText, 0f, DefaultChartRenderCompletionTailSeconds);
             ChartRenderShowHitJudgments = DrawToggleSettingRow(Text("chartRenderShowHitJudgments"), Text("chartRenderShowHitJudgmentsHint"), ChartRenderShowHitJudgments, DefaultChartRenderShowHitJudgments);
+            ChartRenderUseSelectedRange = DrawToggleSettingRow(Text("chartRenderUseSelectedRange"), Text("chartRenderUseSelectedRangeHint"), ChartRenderUseSelectedRange, DefaultChartRenderUseSelectedRange);
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button(Text("chartRenderResetAll"), GUILayout.Width(150)))
@@ -228,6 +233,7 @@ namespace ADOFAI.EditorTweaks
                 || oldRenderTail != ChartRenderCompletionTailSeconds
                 || oldRenderAudioSyncOffset != ChartRenderAudioSyncOffsetMs
                 || oldRenderJudgments != ChartRenderShowHitJudgments
+                || oldRenderUseSelectedRange != ChartRenderUseSelectedRange
                 || oldAdvancedSettingsExpanded != ChartRenderAdvancedSettingsExpanded
                 || oldWorkspaceDirectory != ChartRenderWorkspaceDirectory
                 || oldExportDirectory != ChartRenderExportDirectory)
@@ -691,6 +697,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderCompletionTailSeconds = DefaultChartRenderCompletionTailSeconds;
             ChartRenderAudioSyncOffsetMs = DefaultChartRenderAudioSyncOffsetMs;
             ChartRenderShowHitJudgments = DefaultChartRenderShowHitJudgments;
+            ChartRenderUseSelectedRange = DefaultChartRenderUseSelectedRange;
             ChartRenderAdvancedSettingsExpanded = DefaultChartRenderAdvancedSettingsExpanded;
             SyncChartRenderTextFields();
         }
