@@ -159,6 +159,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     settings.ChartRenderHeight,
                     settings.ChartRenderFps,
                     settings.ChartRenderCrf,
+                    settings.ChartRenderBitrateMbps,
                     settings.ChartRenderEncoderMode,
                     settings.ChartRenderPreset,
                     frameCapture.PixelFormatName,

@@ -327,6 +327,38 @@ temp_video.mp4
 
 默认输出仍是 H.264 + yuv420p + AAC + MP4 + faststart，播放器和投稿兼容性主要来自这些封装和格式，而不是 `fast` / `veryfast` 名称本身。
 
+## 码率限制
+
+视频编码会设置目标码率、最大码率和缓冲区：
+
+```text
+-b:v <target>M
+-maxrate <target * 1.5>M
+-bufsize <target * 2>M
+```
+
+NVENC 使用 VBR：
+
+```text
+-rc vbr -cq <quality> -b:v <target>M -maxrate <max>M -bufsize <buffer>M
+```
+
+x264 使用单次 ABR：
+
+```text
+-b:v <target>M -maxrate <max>M -bufsize <buffer>M
+```
+
+`ChartRenderBitrateMbps = 0` 表示自动推荐。60fps 常见推荐：
+
+| 分辨率 | 推荐码率 |
+| --- | ---: |
+| 1080p | 20 Mbps |
+| 2K / 1440p | 35 Mbps |
+| 4K | 60 Mbps |
+
+码率限制会明显降低 4K 文件体积，也能避免播放器遇到过高瞬时码率时卡顿。代价是极复杂画面在低码率下会更容易出现压缩痕迹。
+
 音频 mux：
 
 ```text

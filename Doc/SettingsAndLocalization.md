@@ -42,6 +42,7 @@
 | `ChartRenderHeight` | 1080 | 视频高度。 |
 | `ChartRenderFps` | 60 | 成品帧率。 |
 | `ChartRenderCrf` | 18 | 画质参数。NVENC 时作为 QP，x264 时作为 CRF。 |
+| `ChartRenderBitrateMbps` | 0 | 视频目标码率。0 表示按分辨率和帧率自动推荐。 |
 | `ChartRenderPreset` | veryfast | 自定义编码字符串，仅在 `ChartRenderEncoderMode = custom` 时显示。 |
 | `ChartRenderEncoderMode` | auto-balanced | 编码档位。默认优先 GPU，并在失败时回退 CPU。 |
 | `ChartRenderCaptureFormat` | rgba | GPU readback 格式。`bgra` 是实验模式。 |
@@ -58,7 +59,7 @@
 设计原则：
 
 - 面向玩家的基础设置默认显示。
-- CRF、编码档位、workspace、回读格式、预览模式这类不直观的设置放到高级设置里。
+- CRF、码率、编码档位、workspace、回读格式、预览模式这类不直观的设置放到高级设置里。
 - 每个渲染设置都有单独重置按钮。
 - 有一键恢复渲染默认。
 - 修改渲染设置后立即保存，下一次渲染生效。
@@ -66,8 +67,10 @@
 基础渲染设置：
 
 - 导出目录。
+- 分辨率快捷预设：1080p、2K、4K。
 - 宽度。
 - 高度。
+- 帧率快捷预设：30、60、120。
 - 帧率。
 - 结束后延迟停止秒数。
 - 是否显示判定文字。
@@ -76,6 +79,7 @@
 
 - 工作区目录。
 - 画质参数。
+- 视频码率，0 表示自动推荐。常见 60fps 建议值：1080p 20 Mbps、2K 35 Mbps、4K 60 Mbps。
 - 编码档位。
 - 自定义编码字符串，仅在自定义档位下显示。
 - GPU readback 格式。
@@ -104,6 +108,7 @@
 - 宽高强制偶数，避免 yuv420p / 编码器失败。
 - FPS 范围：1 到 240。
 - CRF 范围：0 到 51。
+- 码率范围：0 到 300 Mbps。0 表示自动推荐。
 - preset 为空则回到 `veryfast`。
 - 编码档位非法则回到 `auto-balanced`。
 - 回读格式非法则回到 `rgba`。

@@ -20,6 +20,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly int height;
         private readonly int fps;
         private readonly int crf;
+        private readonly int configuredBitrateMbps;
         private readonly string encoderMode;
         private readonly string customPreset;
         private readonly string inputPixelFormat;
@@ -38,6 +39,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             int height,
             int fps,
             int crf,
+            int bitrateMbps,
             string encoderMode,
             string customPreset,
             string inputPixelFormat,
@@ -51,6 +53,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.height = height;
             this.fps = fps;
             this.crf = crf;
+            configuredBitrateMbps = Math.Max(ChartRenderBitratePresets.AutoBitrateMbps, Math.Min(ChartRenderBitratePresets.MaxBitrateMbps, bitrateMbps));
             this.encoderMode = ChartRenderOptionValues.NormalizeEncoderMode(encoderMode);
             this.customPreset = string.IsNullOrWhiteSpace(customPreset) ? "veryfast" : customPreset.Trim();
             this.inputPixelFormat = ChartRenderOptionValues.NormalizeCaptureFormat(inputPixelFormat);
@@ -72,6 +75,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 
             ChartRenderDiagnostics.Log("FFmpeg video args: mode=" + encoderMode
                 + " input=" + inputPixelFormat
+                + " bitrate=" + GetTargetBitrateMbps() + "M"
                 + " queueFrames=" + queueCapacityFrames
                 + " args=" + args);
             process = StartProcess(args, redirectInput: true);
@@ -270,13 +274,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 string tune = encoderMode == ChartRenderOptionValues.EncoderFastest ? "ll" : "hq";
                 EncoderName = "h264_nvenc " + nvencPreset;
                 Main.Log("Chart renderer using h264_nvenc preset " + nvencPreset + ".");
-                return "-c:v h264_nvenc -preset " + nvencPreset + " -tune " + tune + " -rc constqp -qp " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+                return "-c:v h264_nvenc -preset " + nvencPreset + " -tune " + tune + " " + GetNvencBitrateArguments() + " -g " + Math.Max(1, fps * 2);
             }
 
             string x264Preset = GetX264Preset();
             EncoderName = "libx264 " + x264Preset;
             Main.Log("Chart renderer using libx264 preset " + x264Preset + ".");
-            return "-c:v libx264 -preset " + Quote(x264Preset) + " -crf " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+            return "-c:v libx264 -preset " + Quote(x264Preset) + " " + GetX264BitrateArguments() + " -g " + Math.Max(1, fps * 2);
         }
 
         private string GetCustomVideoEncoderArguments()
@@ -285,13 +289,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 EncoderName = "h264_nvenc p1";
                 Main.Log("Chart renderer using custom compatibility h264_nvenc.");
-                return "-c:v h264_nvenc -preset p1 -tune ll -rc constqp -qp " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+                return "-c:v h264_nvenc -preset p1 -tune ll " + GetNvencBitrateArguments() + " -g " + Math.Max(1, fps * 2);
             }
 
             string x264Preset = GetRealtimePreset();
             EncoderName = "libx264 " + x264Preset;
             Main.Log("Chart renderer using custom libx264 preset " + x264Preset + ".");
-            return "-c:v libx264 -preset " + Quote(x264Preset) + " -crf " + ClampCrf() + " -g " + Math.Max(1, fps * 2);
+            return "-c:v libx264 -preset " + Quote(x264Preset) + " " + GetX264BitrateArguments() + " -g " + Math.Max(1, fps * 2);
         }
 
         private bool ForcesCpuEncoder()
@@ -339,6 +343,32 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private int ClampCrf()
         {
             return Math.Max(0, Math.Min(51, crf));
+        }
+
+        private int GetTargetBitrateMbps()
+        {
+            return ChartRenderBitratePresets.ResolveTargetBitrateMbps(configuredBitrateMbps, width, height, fps);
+        }
+
+        private string GetNvencBitrateArguments()
+        {
+            int target = GetTargetBitrateMbps();
+            int maxRate = ChartRenderBitratePresets.GetMaxRateMbps(target);
+            int buffer = ChartRenderBitratePresets.GetBufferSizeMbps(target);
+            return "-rc vbr -cq " + ClampCrf()
+                + " -b:v " + target + "M"
+                + " -maxrate " + maxRate + "M"
+                + " -bufsize " + buffer + "M";
+        }
+
+        private string GetX264BitrateArguments()
+        {
+            int target = GetTargetBitrateMbps();
+            int maxRate = ChartRenderBitratePresets.GetMaxRateMbps(target);
+            int buffer = ChartRenderBitratePresets.GetBufferSizeMbps(target);
+            return "-b:v " + target + "M"
+                + " -maxrate " + maxRate + "M"
+                + " -bufsize " + buffer + "M";
         }
 
         private bool IsNvencAvailable()

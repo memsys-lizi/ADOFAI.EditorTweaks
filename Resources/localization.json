@@ -121,6 +121,16 @@
       "zh": "横向分辨率。越大越清晰，但渲染更慢、文件更大。"
     },
     {
+      "key": "chartRenderResolutionPreset",
+      "en": "Resolution preset",
+      "zh": "分辨率预设"
+    },
+    {
+      "key": "chartRenderResolutionPresetHint",
+      "en": "Quickly choose 1080p, 2K (1440p), or 4K. Manual width and height are still available below.",
+      "zh": "一键选择 1080p、2K（1440p）或 4K。下面仍然可以手动微调宽高。"
+    },
+    {
       "key": "chartRenderHeight",
       "en": "Video height",
       "zh": "视频高度"
@@ -141,14 +151,39 @@
       "zh": "每秒画面数量。60 帧已经很流畅，推荐保持默认。"
     },
     {
+      "key": "chartRenderFpsPreset",
+      "en": "Frame rate preset",
+      "zh": "帧率预设"
+    },
+    {
+      "key": "chartRenderFpsPresetHint",
+      "en": "30 is smaller, 60 is recommended, 120 is smoother but much heavier.",
+      "zh": "30 帧体积更小，60 帧推荐，120 帧更顺滑但渲染和播放压力更高。"
+    },
+    {
       "key": "chartRenderCrf",
       "en": "Quality parameter",
       "zh": "画质参数"
     },
     {
       "key": "chartRenderCrfHint",
-      "en": "Advanced x264/NVENC quality value. Lower means clearer video and larger files.",
-      "zh": "高级画质参数。数值越低越清晰、文件越大。看不懂就保持默认。"
+      "en": "Advanced quality value. Lower is clearer. With bitrate limiting, it mainly controls NVENC VBR quality.",
+      "zh": "高级画质参数。数值越低越清晰。启用码率限制后，它主要影响 NVENC 的 VBR 质量。"
+    },
+    {
+      "key": "chartRenderBitrateMbps",
+      "en": "Video bitrate (Mbps)",
+      "zh": "视频码率（Mbps）"
+    },
+    {
+      "key": "chartRenderBitrateMbpsHint",
+      "en": "Limits file size and peak playback load. 0 = auto recommendation. Common 60 fps values: 1080p 20, 2K 35, 4K 60.",
+      "zh": "限制文件体积和播放器峰值压力。0 = 自动推荐。常见 60 帧建议：1080p 20，2K 35，4K 60。"
+    },
+    {
+      "key": "chartRenderBitrateRecommendedHint",
+      "en": "Current recommendation: {0} Mbps; effective target: {1} Mbps.",
+      "zh": "当前推荐：{0} Mbps；实际目标：{1} Mbps。"
     },
     {
       "key": "chartRenderPreset",

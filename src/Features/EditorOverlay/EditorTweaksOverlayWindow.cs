@@ -367,8 +367,10 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private static string GetChartRenderProfileText()
         {
             Settings settings = Main.Settings;
+            int bitrate = ChartRenderBitratePresets.ResolveTargetBitrateMbps(settings.ChartRenderBitrateMbps, settings.ChartRenderWidth, settings.ChartRenderHeight, settings.ChartRenderFps);
             return settings.ChartRenderWidth + "x" + settings.ChartRenderHeight
-                + " @ " + settings.ChartRenderFps + "fps";
+                + " @ " + settings.ChartRenderFps + "fps"
+                + " | " + bitrate + " Mbps";
         }
 
         private void StartChartRender()

@@ -19,6 +19,7 @@ namespace ADOFAI.EditorTweaks
         private const int DefaultChartRenderHeight = 1080;
         private const int DefaultChartRenderFps = 60;
         private const int DefaultChartRenderCrf = 18;
+        private const int DefaultChartRenderBitrateMbps = ChartRenderBitratePresets.AutoBitrateMbps;
         private const float DefaultChartRenderCompletionTailSeconds = 5f;
         private const float DefaultChartRenderAudioSyncOffsetMs = 0f;
         private const float MinChartRenderAudioSyncOffsetMs = -5000f;
@@ -68,6 +69,8 @@ namespace ADOFAI.EditorTweaks
 
         public int ChartRenderCrf = 18;
 
+        public int ChartRenderBitrateMbps = DefaultChartRenderBitrateMbps;
+
         public string ChartRenderPreset = "veryfast";
 
         public string ChartRenderEncoderMode = DefaultChartRenderEncoderMode;
@@ -114,6 +117,8 @@ namespace ADOFAI.EditorTweaks
 
         private string renderCrfText = string.Empty;
 
+        private string renderBitrateText = string.Empty;
+
         private string renderPresetText = string.Empty;
 
         private string renderTailSecondsText = string.Empty;
@@ -131,6 +136,7 @@ namespace ADOFAI.EditorTweaks
             int oldRenderHeight = ChartRenderHeight;
             int oldRenderFps = ChartRenderFps;
             int oldRenderCrf = ChartRenderCrf;
+            int oldRenderBitrate = ChartRenderBitrateMbps;
             string oldRenderPreset = ChartRenderPreset;
             string oldRenderEncoderMode = ChartRenderEncoderMode;
             string oldRenderCaptureFormat = ChartRenderCaptureFormat;
@@ -167,8 +173,10 @@ namespace ADOFAI.EditorTweaks
             DrawSection(Text("renderSection"));
             GUILayout.Label(Text("chartRenderBasicHint"), hintStyle);
             ChartRenderExportDirectory = DrawTextSettingRow(Text("chartRenderExportDirectory"), Text("chartRenderExportDirectoryHint"), ChartRenderExportDirectory, GetDefaultExportDirectory(modEntry));
+            DrawResolutionPresetRow();
             ChartRenderWidth = DrawIntSettingRow(Text("chartRenderWidth"), Text("chartRenderWidthHint"), ChartRenderWidth, ref renderWidthText, MinChartRenderSize, MaxChartRenderWidth, DefaultChartRenderWidth);
             ChartRenderHeight = DrawIntSettingRow(Text("chartRenderHeight"), Text("chartRenderHeightHint"), ChartRenderHeight, ref renderHeightText, MinChartRenderSize, MaxChartRenderHeight, DefaultChartRenderHeight);
+            DrawFpsPresetRow();
             ChartRenderFps = DrawIntSettingRow(Text("chartRenderFps"), Text("chartRenderFpsHint"), ChartRenderFps, ref renderFpsText, MinChartRenderFps, MaxChartRenderFps, DefaultChartRenderFps);
             ChartRenderCompletionTailSeconds = DrawFloatSettingRow(Text("chartRenderCompletionTailSeconds"), Text("chartRenderCompletionTailSecondsHint"), ChartRenderCompletionTailSeconds, ref renderTailSecondsText, 0f, DefaultChartRenderCompletionTailSeconds);
             ChartRenderShowHitJudgments = DrawToggleSettingRow(Text("chartRenderShowHitJudgments"), Text("chartRenderShowHitJudgmentsHint"), ChartRenderShowHitJudgments, DefaultChartRenderShowHitJudgments);
@@ -193,6 +201,7 @@ namespace ADOFAI.EditorTweaks
                 ChartRenderWorkspaceDirectory = DrawTextSettingRow(Text("chartRenderWorkspaceDirectory"), Text("chartRenderWorkspaceDirectoryHint"), ChartRenderWorkspaceDirectory, GetDefaultWorkspaceDirectory(modEntry));
                 ChartRenderEncoderMode = DrawChoiceSettingRow(Text("chartRenderEncoderMode"), Text("chartRenderEncoderModeHint"), ChartRenderEncoderMode, ChartRenderOptionValues.EncoderModes, GetEncoderModeLabels(), DefaultChartRenderEncoderMode);
                 ChartRenderCrf = DrawIntSettingRow(Text("chartRenderCrf"), Text("chartRenderCrfHint"), ChartRenderCrf, ref renderCrfText, MinChartRenderCrf, MaxChartRenderCrf, DefaultChartRenderCrf);
+                ChartRenderBitrateMbps = DrawIntSettingRow(Text("chartRenderBitrateMbps"), GetBitrateHint(), ChartRenderBitrateMbps, ref renderBitrateText, ChartRenderBitratePresets.AutoBitrateMbps, ChartRenderBitratePresets.MaxBitrateMbps, DefaultChartRenderBitrateMbps);
                 if (ChartRenderOptionValues.NormalizeEncoderMode(ChartRenderEncoderMode) == ChartRenderOptionValues.EncoderCustom)
                 {
                     ChartRenderPreset = DrawStringSettingRow(Text("chartRenderPreset"), Text("chartRenderPresetHint"), ChartRenderPreset, ref renderPresetText, DefaultChartRenderPreset);
@@ -211,6 +220,7 @@ namespace ADOFAI.EditorTweaks
                 || oldRenderHeight != ChartRenderHeight
                 || oldRenderFps != ChartRenderFps
                 || oldRenderCrf != ChartRenderCrf
+                || oldRenderBitrate != ChartRenderBitrateMbps
                 || oldRenderPreset != ChartRenderPreset
                 || oldRenderEncoderMode != ChartRenderEncoderMode
                 || oldRenderCaptureFormat != ChartRenderCaptureFormat
@@ -241,6 +251,7 @@ namespace ADOFAI.EditorTweaks
             renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
             renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
             renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
+            renderBitrateText = ChartRenderBitrateMbps.ToString(CultureInfo.InvariantCulture);
             renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
             renderAudioSyncOffsetText = FormatFloat(ChartRenderAudioSyncOffsetMs);
@@ -442,6 +453,68 @@ namespace ADOFAI.EditorTweaks
             return value;
         }
 
+        private void DrawResolutionPresetRow()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Text("chartRenderResolutionPreset"), labelStyle, GUILayout.Width(190));
+            if (GUILayout.Button("1080p", GUILayout.Width(82)))
+            {
+                ApplyChartRenderResolutionPreset(1920, 1080);
+            }
+
+            if (GUILayout.Button("2K", GUILayout.Width(82)))
+            {
+                ApplyChartRenderResolutionPreset(2560, 1440);
+            }
+
+            if (GUILayout.Button("4K", GUILayout.Width(82)))
+            {
+                ApplyChartRenderResolutionPreset(3840, 2160);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(Text("chartRenderResolutionPresetHint"), hintStyle);
+        }
+
+        private void DrawFpsPresetRow()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Text("chartRenderFpsPreset"), labelStyle, GUILayout.Width(190));
+            if (GUILayout.Button("30", GUILayout.Width(82)))
+            {
+                ApplyChartRenderFpsPreset(30);
+            }
+
+            if (GUILayout.Button("60", GUILayout.Width(82)))
+            {
+                ApplyChartRenderFpsPreset(60);
+            }
+
+            if (GUILayout.Button("120", GUILayout.Width(82)))
+            {
+                ApplyChartRenderFpsPreset(120);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(Text("chartRenderFpsPresetHint"), hintStyle);
+        }
+
+        private void ApplyChartRenderResolutionPreset(int width, int height)
+        {
+            ChartRenderWidth = width;
+            ChartRenderHeight = height;
+            renderWidthText = ChartRenderWidth.ToString(CultureInfo.InvariantCulture);
+            renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private void ApplyChartRenderFpsPreset(int fps)
+        {
+            ChartRenderFps = Mathf.Clamp(fps, MinChartRenderFps, MaxChartRenderFps);
+            renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
+        }
+
         private static string DrawChoiceSettingRow(string label, string hint, string value, string[] values, string[] labels, string defaultValue)
         {
             GUILayout.BeginHorizontal();
@@ -529,6 +602,15 @@ namespace ADOFAI.EditorTweaks
             };
         }
 
+        private string GetBitrateHint()
+        {
+            int recommended = ChartRenderBitratePresets.GetRecommendedBitrateMbps(ChartRenderWidth, ChartRenderHeight, ChartRenderFps);
+            int effective = ChartRenderBitratePresets.ResolveTargetBitrateMbps(ChartRenderBitrateMbps, ChartRenderWidth, ChartRenderHeight, ChartRenderFps);
+            return Text("chartRenderBitrateMbpsHint")
+                + " "
+                + string.Format(CultureInfo.InvariantCulture, Text("chartRenderBitrateRecommendedHint"), recommended, effective);
+        }
+
         private static string FormatFloat(float value)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
@@ -577,6 +659,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderHeight = MakeEven(Mathf.Clamp(ChartRenderHeight, MinChartRenderSize, MaxChartRenderHeight));
             ChartRenderFps = Mathf.Clamp(ChartRenderFps, MinChartRenderFps, MaxChartRenderFps);
             ChartRenderCrf = Mathf.Clamp(ChartRenderCrf, MinChartRenderCrf, MaxChartRenderCrf);
+            ChartRenderBitrateMbps = Mathf.Clamp(ChartRenderBitrateMbps, ChartRenderBitratePresets.AutoBitrateMbps, ChartRenderBitratePresets.MaxBitrateMbps);
             ChartRenderPreset = string.IsNullOrWhiteSpace(ChartRenderPreset)
                 ? DefaultChartRenderPreset
                 : ChartRenderPreset.Trim();
@@ -600,6 +683,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderHeight = DefaultChartRenderHeight;
             ChartRenderFps = DefaultChartRenderFps;
             ChartRenderCrf = DefaultChartRenderCrf;
+            ChartRenderBitrateMbps = DefaultChartRenderBitrateMbps;
             ChartRenderPreset = DefaultChartRenderPreset;
             ChartRenderEncoderMode = DefaultChartRenderEncoderMode;
             ChartRenderCaptureFormat = DefaultChartRenderCaptureFormat;
@@ -617,6 +701,7 @@ namespace ADOFAI.EditorTweaks
             renderHeightText = ChartRenderHeight.ToString(CultureInfo.InvariantCulture);
             renderFpsText = ChartRenderFps.ToString(CultureInfo.InvariantCulture);
             renderCrfText = ChartRenderCrf.ToString(CultureInfo.InvariantCulture);
+            renderBitrateText = ChartRenderBitrateMbps.ToString(CultureInfo.InvariantCulture);
             renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
             renderAudioSyncOffsetText = FormatFloat(ChartRenderAudioSyncOffsetMs);

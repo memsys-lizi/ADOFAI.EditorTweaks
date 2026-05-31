@@ -21,12 +21,12 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 || controller == null
                 || controller.paused
                 || controller.state != States.PlayerControl
-                || controller.playerManager == null)
+                || ADOBase.playerManager == null)
             {
                 return;
             }
 
-            List<scrPlayer> players = controller.playerManager.GetActivePlayers();
+            List<scrPlayer> players = ADOBase.playerManager.GetActivePlayers();
             foreach (scrPlayer player in players)
             {
                 CatchUpPlayer(player, conductor, controller);
