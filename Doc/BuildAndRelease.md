@@ -33,7 +33,7 @@ build-release.bat
 默认执行 Minor 版本递增，例如：
 
 ```text
-1.2.1 -> 1.3.0
+1.2.2 -> 1.3.0
 ```
 
 也可以指定递增类型：
@@ -95,8 +95,8 @@ dotnet build /p:BumpModVersion=true /p:ModVersionBumpKind=Patch
 
 ```text
 Build/
-├── ADOFAI.EditorTweaks-1.2.1/
-└── ADOFAI.EditorTweaks-1.2.1.zip
+├── ADOFAI.EditorTweaks-1.2.2/
+└── ADOFAI.EditorTweaks-1.2.2.zip
 ```
 
 `Build/` 已加入 `.gitignore`，不会提交到仓库。

@@ -141,6 +141,12 @@ Prefix 接管官方方法。
 
 Postfix 修正屏幕相对装饰的 parallax 数据。
 
+增加三层守卫：
+
+1. 只在编辑器环境生效（`ADOBase.editor != null && ADOBase.isEditingLevel`），不干预游戏播放。
+2. 只对当前选中的装饰修正位置（`selectedDecorations.Contains(sourceLevelEvent)`），不影响其他装饰。
+3. 只在装饰原有 `clampToScreen` 已启用时修正，**不再强制覆写** `clampToScreen = true`，保留游戏对装饰可见性的控制。
+
 CameraAspect 要先：
 
 ```text
@@ -150,7 +156,6 @@ pivot.x *= Screen.height / Screen.width
 然后：
 
 ```text
-parallax.clampToScreen = true
 parallax.screenRelativePos = pivot / 20 + (0.5, 0.5)
 ```
 
