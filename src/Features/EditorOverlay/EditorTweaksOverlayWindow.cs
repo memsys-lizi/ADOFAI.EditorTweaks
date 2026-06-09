@@ -211,15 +211,25 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             bool blockWindowInput = IsRenderOverlayActive;
             float width = windowRect.width;
             drawWidth = width;
-            DrawRect(new Rect(0f, 40f, width, Mathf.Max(0f, windowRect.height - 40f)), new Color(0.075f, 0.083f, 0.092f, 0.98f));
-            DrawRect(new Rect(0f, 0f, width, 40f), new Color(0.09f, 0.11f, 0.13f, 0.72f));
-            DrawRect(new Rect(0f, 39f, width, 1f), new Color(0.32f, 0.56f, 0.64f, 0.44f));
+            
+            // 现代渐变背景
+            DrawRect(new Rect(0f, 42f, width, Mathf.Max(0f, windowRect.height - 42f)), new Color(0.11f, 0.12f, 0.14f, 0.98f));
+            // 标题栏渐变
+            DrawGradientRect(new Rect(0f, 0f, width, 42f), new Color(0.16f, 0.18f, 0.22f, 0.95f), new Color(0.13f, 0.15f, 0.18f, 0.95f));
+            // 标题栏底部高光线
+            DrawRect(new Rect(0f, 41f, width, 1f), new Color(0.40f, 0.65f, 0.85f, 0.55f));
+            // 绘制窗口边框和阴影
             DrawWindowBorder(width, windowRect.height);
-            DrawRect(new Rect(14f, 12f, 4f, 16f), new Color(0.42f, 0.78f, 0.82f, 0.95f));
+            // 左侧强调色条 - 更宽更醒目
+            DrawRect(new Rect(12f, 10f, 5f, 22f), new Color(0.35f, 0.70f, 0.95f, 1f));
+            // 强调色条左侧微光
+            DrawRect(new Rect(11f, 10f, 1f, 22f), new Color(0.50f, 0.82f, 1f, 0.5f));
 
-            GUI.Label(new Rect(26f, 8f, width - 78f, 24f), Settings.Text("overlayTitle"), titleStyle);
+            GUI.Label(new Rect(28f, 8f, width - 78f, 26f), Settings.Text("overlayTitle"), titleStyle);
+            
+            // 现代化的折叠按钮
             string collapseText = Main.Settings.EditorOverlayCollapsed ? "+" : "-";
-            if (!blockWindowInput && GUI.Button(new Rect(width - 42f, 8f, 26f, 24f), collapseText, buttonStyle))
+            if (!blockWindowInput && GUI.Button(new Rect(width - 44f, 9f, 28f, 24f), collapseText, buttonStyle))
             {
                 Main.Settings.EditorOverlayCollapsed = !Main.Settings.EditorOverlayCollapsed;
                 windowRect.height = Main.Settings.EditorOverlayCollapsed ? CollapsedHeight : ExpandedHeight;
@@ -230,54 +240,55 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             {
                 if (!blockWindowInput)
                 {
-                    GUI.DragWindow(new Rect(0f, 0f, width - 42f, CollapsedHeight));
+                    GUI.DragWindow(new Rect(0f, 0f, width - 44f, CollapsedHeight));
                 }
 
                 return;
             }
 
-            Rect scrollRect = new Rect(0f, 48f, width, windowRect.height - 56f);
+            Rect scrollRect = new Rect(0f, 50f, width, windowRect.height - 58f);
             Rect viewRect = new Rect(0f, 0f, width - 16f, 468f);
             scrollPosition = GUI.BeginScrollView(scrollRect, scrollPosition, viewRect, false, true);
             drawWidth = viewRect.width;
 
-            float y = 6f;
+            float y = 8f;
             DrawSectionLabel(Settings.Text("decorationSection"), y, Settings.Text("zeroDisables"));
-            y += 30f;
+            y += 32f;
             DrawFloatRow(y, Settings.Text("decorationMoveSnapStep"), ref snapStepText, 0f, value => Main.Settings.DecorationMoveSnapStep = value);
 
-            y += 44f;
+            y += 46f;
             DrawSectionLabel(Settings.Text("numericSection"), y);
-            y += 30f;
+            y += 32f;
             DrawFloatRow(y, Settings.Text("floatStepPerPixel"), ref floatStepText, 0.0001f, value => Main.Settings.FloatStepPerPixel = value);
-            y += 36f;
+            y += 38f;
             DrawFloatRow(y, Settings.Text("intStepPerPixel"), ref intStepText, 0.0001f, value => Main.Settings.IntStepPerPixel = value);
-            y += 36f;
+            y += 38f;
             DrawIntRow(y, Settings.Text("maxFloatDecimals"), ref decimalsText, 0, 8, value => Main.Settings.MaxFloatingPoints = value);
 
-            y += 44f;
+            y += 46f;
             DrawSectionLabel(Settings.Text("renderSection"), y);
-            y += 30f;
+            y += 32f;
             DrawChartRenderPanel(y);
 
             GUI.EndScrollView();
             drawWidth = width;
             if (!blockWindowInput)
             {
-                GUI.DragWindow(new Rect(0f, 0f, width - 42f, 40f));
+                GUI.DragWindow(new Rect(0f, 0f, width - 44f, 42f));
             }
         }
 
         private void DrawSectionLabel(string text, float y, string? hint = null)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            GUI.Label(new Rect(22f, y, width * 0.55f, 22f), text, sectionStyle);
+            GUI.Label(new Rect(24f, y, width * 0.55f, 24f), text, sectionStyle);
             if (!string.IsNullOrEmpty(hint))
             {
-                GUI.Label(new Rect(width - 112f, y + 1f, 88f, 20f), hint, hintStyle);
+                GUI.Label(new Rect(width - 112f, y + 2f, 88f, 20f), hint, hintStyle);
             }
 
-            DrawRect(new Rect(22f, y + 23f, width - 44f, 1f), new Color(0.28f, 0.48f, 0.56f, 0.36f));
+            // 现代化分隔线 - 渐变效果
+            DrawGradientRect(new Rect(24f, y + 25f, width - 48f, 1f), new Color(0.40f, 0.65f, 0.85f, 0.25f), new Color(0.40f, 0.65f, 0.85f, 0.08f));
         }
 
         private void DrawFloatRow(float y, string label, ref string text, float min, System.Action<float> apply)
@@ -319,21 +330,25 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
         private void DrawValueRow(float y, string label, string value, out Rect inputRect)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            Rect rowRect = new Rect(20f, y, width - 40f, 32f);
+            Rect rowRect = new Rect(22f, y, width - 44f, 34f);
             GUI.Box(rowRect, GUIContent.none, rowStyle);
-            DrawRect(new Rect(rowRect.x, rowRect.y, 3f, rowRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
+            
+            // 左侧强调色条
+            DrawRect(new Rect(rowRect.x, rowRect.y + 1f, 3f, rowRect.height - 2f), new Color(0.35f, 0.65f, 0.85f, 0.45f));
 
-            inputRect = new Rect(width - 112f, y + 5f, 86f, 22f);
-            Rect labelRect = new Rect(34f, y + 6f, inputRect.x - 44f, 20f);
+            inputRect = new Rect(width - 114f, y + 6f, 86f, 22f);
+            Rect labelRect = new Rect(36f, y + 7f, inputRect.x - 46f, 20f);
             GUI.Label(labelRect, label, labelStyle);
         }
 
         private void DrawChartRenderPanel(float y)
         {
             float width = drawWidth > 0f ? drawWidth : windowRect.width;
-            Rect panelRect = new Rect(20f, y, width - 40f, 180f);
+            Rect panelRect = new Rect(22f, y, width - 44f, 184f);
             GUI.Box(panelRect, GUIContent.none, rowStyle);
-            DrawRect(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), new Color(0.44f, 0.76f, 0.80f, 0.38f));
+            
+            // 左侧强调色条
+            DrawRect(new Rect(panelRect.x, panelRect.y + 1f, 3f, panelRect.height - 2f), new Color(0.35f, 0.65f, 0.85f, 0.45f));
 
             string disabledReason = GetChartRenderDisabledReason();
             bool isRendering = chartRenderSession != null && chartRenderSession.IsActive;
@@ -344,10 +359,10 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 status = chartRenderMessage;
             }
 
-            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 10f, panelRect.width - 28f, 34f), status, labelStyle);
-            GUI.Label(new Rect(panelRect.x + 14f, panelRect.y + 44f, panelRect.width - 28f, 20f), GetChartRenderProfileText(), hintStyle);
+            GUI.Label(new Rect(panelRect.x + 16f, panelRect.y + 12f, panelRect.width - 32f, 34f), status, labelStyle);
+            GUI.Label(new Rect(panelRect.x + 16f, panelRect.y + 46f, panelRect.width - 32f, 20f), GetChartRenderProfileText(), hintStyle);
 
-            Rect toggleRect = new Rect(panelRect.x + 14f, panelRect.y + 68f, panelRect.width - 28f, 24f);
+            Rect toggleRect = new Rect(panelRect.x + 16f, panelRect.y + 72f, panelRect.width - 32f, 24f);
             bool showJudgments = GUI.Toggle(toggleRect, Main.Settings.ChartRenderShowHitJudgments, Settings.Text("chartRenderShowHitJudgments"), toggleStyle);
             if (showJudgments != Main.Settings.ChartRenderShowHitJudgments)
             {
@@ -355,7 +370,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 SaveSettings();
             }
 
-            Rect rangeToggleRect = new Rect(panelRect.x + 14f, panelRect.y + 94f, panelRect.width - 28f, 24f);
+            Rect rangeToggleRect = new Rect(panelRect.x + 16f, panelRect.y + 98f, panelRect.width - 32f, 24f);
             bool useSelectedRange = GUI.Toggle(rangeToggleRect, Main.Settings.ChartRenderUseSelectedRange, Settings.Text("chartRenderUseSelectedRange"), toggleStyle);
             if (useSelectedRange != Main.Settings.ChartRenderUseSelectedRange)
             {
@@ -364,7 +379,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             }
 
             GUI.enabled = canRender;
-            if (GUI.Button(new Rect(panelRect.x + 14f, panelRect.y + 136f, panelRect.width - 28f, 30f), Settings.Text("chartRendererRender"), buttonStyle))
+            if (GUI.Button(new Rect(panelRect.x + 16f, panelRect.y + 140f, panelRect.width - 32f, 32f), Settings.Text("chartRendererRender"), buttonStyle))
             {
                 StartChartRender();
             }
@@ -568,11 +583,12 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 return;
             }
 
-            Texture2D windowBackground = MakeTexture(new Color(0.075f, 0.083f, 0.092f, 0.98f));
+            // 现代深色主题配色 - 参考截图风格
+            Texture2D windowBackground = MakeTexture(new Color(0.11f, 0.12f, 0.14f, 0.98f));
             windowStyle = new GUIStyle(GUI.skin.window)
             {
                 padding = new RectOffset(0, 0, 0, 0),
-                border = new RectOffset(10, 10, 10, 10),
+                border = new RectOffset(12, 12, 12, 12),
                 normal = { background = windowBackground },
                 focused = { background = windowBackground },
                 active = { background = windowBackground },
@@ -584,11 +600,11 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             };
             titleStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 14,
+                fontSize = 15,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
-                normal = { textColor = new Color(0.94f, 0.98f, 1f, 1f) }
+                normal = { textColor = new Color(0.95f, 0.97f, 1f, 1f) }
             };
             labelStyle = new GUIStyle(GUI.skin.label)
             {
@@ -596,48 +612,60 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
                 padding = new RectOffset(0, 8, 0, 0),
-                normal = { textColor = new Color(0.83f, 0.88f, 0.90f, 1f) }
+                normal = { textColor = new Color(0.88f, 0.90f, 0.92f, 1f) }
             };
             hintStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 11,
+                fontSize = 10,
                 alignment = TextAnchor.MiddleRight,
                 clipping = TextClipping.Clip,
                 padding = new RectOffset(0, 0, 0, 0),
-                normal = { textColor = new Color(0.72f, 0.70f, 0.58f, 1f) }
+                normal = { textColor = new Color(0.55f, 0.58f, 0.62f, 0.88f) }
             };
             inputStyle = new GUIStyle(GUI.skin.textField)
             {
                 fontSize = 12,
                 alignment = TextAnchor.MiddleCenter,
                 clipping = TextClipping.Clip,
-                padding = new RectOffset(4, 4, 2, 2),
+                padding = new RectOffset(6, 6, 4, 4),
+                border = new RectOffset(4, 4, 4, 4),
                 normal =
                 {
-                    background = MakeTexture(new Color(0.075f, 0.083f, 0.092f, 1f)),
-                    textColor = Color.white
+                    background = MakeRoundedTexture(new Color(0.14f, 0.16f, 0.18f, 0.95f), 4),
+                    textColor = new Color(0.92f, 0.94f, 0.96f, 1f)
+                },
+                hover =
+                {
+                    background = MakeRoundedTexture(new Color(0.16f, 0.18f, 0.20f, 0.98f), 4),
+                    textColor = new Color(0.95f, 0.97f, 1f, 1f)
                 },
                 focused =
                 {
-                    background = MakeTexture(new Color(0.12f, 0.15f, 0.16f, 1f)),
-                    textColor = Color.white
+                    background = MakeRoundedTexture(new Color(0.18f, 0.20f, 0.23f, 1f), 4),
+                    textColor = new Color(0.98f, 0.99f, 1f, 1f)
                 }
             };
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 14,
+                fontSize = 13,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
-                padding = new RectOffset(0, 0, 0, 2),
+                padding = new RectOffset(12, 12, 6, 6),
+                border = new RectOffset(6, 6, 6, 6),
                 normal =
                 {
-                    background = MakeTexture(new Color(0.12f, 0.15f, 0.16f, 0.92f)),
-                    textColor = new Color(0.88f, 0.92f, 0.96f, 1f)
+                    background = MakeGradientButton(new Color(0.25f, 0.50f, 0.75f, 0.92f), new Color(0.20f, 0.42f, 0.65f, 0.92f)),
+                    textColor = new Color(0.95f, 0.97f, 1f, 1f)
                 },
                 hover =
                 {
-                    background = MakeTexture(new Color(0.20f, 0.28f, 0.30f, 0.98f)),
+                    background = MakeGradientButton(new Color(0.30f, 0.58f, 0.85f, 0.98f), new Color(0.25f, 0.50f, 0.75f, 0.98f)),
                     textColor = Color.white
+                },
+                active =
+                {
+                    background = MakeGradientButton(new Color(0.22f, 0.45f, 0.68f, 1f), new Color(0.18f, 0.38f, 0.58f, 1f)),
+                    textColor = new Color(0.90f, 0.92f, 0.95f, 1f)
                 }
             };
             toggleStyle = new GUIStyle(GUI.skin.toggle)
@@ -645,15 +673,15 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 fontSize = 12,
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
-                padding = new RectOffset(18, 0, 2, 0),
-                normal = { textColor = new Color(0.83f, 0.88f, 0.90f, 1f) },
-                hover = { textColor = Color.white },
-                focused = { textColor = Color.white },
-                active = { textColor = Color.white },
-                onNormal = { textColor = new Color(0.90f, 0.98f, 1f, 1f) },
-                onHover = { textColor = Color.white },
-                onFocused = { textColor = Color.white },
-                onActive = { textColor = Color.white }
+                padding = new RectOffset(20, 0, 3, 3),
+                normal = { textColor = new Color(0.86f, 0.88f, 0.90f, 1f) },
+                hover = { textColor = new Color(0.95f, 0.97f, 1f, 1f) },
+                focused = { textColor = new Color(0.95f, 0.97f, 1f, 1f) },
+                active = { textColor = new Color(0.95f, 0.97f, 1f, 1f) },
+                onNormal = { textColor = new Color(0.30f, 0.70f, 0.95f, 1f) },
+                onHover = { textColor = new Color(0.40f, 0.78f, 1f, 1f) },
+                onFocused = { textColor = new Color(0.40f, 0.78f, 1f, 1f) },
+                onActive = { textColor = new Color(0.40f, 0.78f, 1f, 1f) }
             };
             sectionStyle = new GUIStyle(GUI.skin.label)
             {
@@ -662,30 +690,41 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
                 padding = new RectOffset(0, 0, 0, 0),
-                normal = { textColor = new Color(0.84f, 0.95f, 0.98f, 1f) }
+                normal = { textColor = new Color(0.50f, 0.75f, 0.95f, 1f) }
             };
             rowStyle = new GUIStyle
             {
                 padding = new RectOffset(0, 0, 0, 0),
-                margin = new RectOffset(0, 0, 1, 1),
-                normal = { background = MakeTexture(new Color(0.10f, 0.115f, 0.128f, 0.58f)) }
+                margin = new RectOffset(0, 0, 2, 2),
+                border = new RectOffset(4, 4, 4, 4),
+                normal = { background = MakeRoundedTexture(new Color(0.14f, 0.16f, 0.18f, 0.65f), 6) }
             };
         }
 
         private void DrawWindowBorder(float width, float height)
         {
-            Color outer = new Color(0.78f, 0.88f, 0.92f, 0.82f);
-            Color inner = new Color(0.34f, 0.53f, 0.58f, 0.34f);
+            // 外层发光边框
+            Color glowOuter = new Color(0.50f, 0.75f, 0.95f, 0.35f);
+            Color glowInner = new Color(0.35f, 0.60f, 0.80f, 0.20f);
+            
+            // 主边框
+            Color borderMain = new Color(0.25f, 0.40f, 0.55f, 0.75f);
 
-            DrawRect(new Rect(0f, 0f, width, 1f), outer);
-            DrawRect(new Rect(0f, height - 1f, width, 1f), outer);
-            DrawRect(new Rect(0f, 0f, 1f, height), outer);
-            DrawRect(new Rect(width - 1f, 0f, 1f, height), outer);
+            // 外层发光
+            DrawRect(new Rect(-1f, -1f, width + 2f, 1f), glowOuter);
+            DrawRect(new Rect(-1f, height, width + 2f, 1f), glowOuter);
+            DrawRect(new Rect(-1f, -1f, 1f, height + 2f), glowOuter);
+            DrawRect(new Rect(width, -1f, 1f, height + 2f), glowOuter);
 
-            DrawRect(new Rect(1f, 1f, width - 2f, 1f), inner);
-            DrawRect(new Rect(1f, height - 2f, width - 2f, 1f), inner);
-            DrawRect(new Rect(1f, 1f, 1f, height - 2f), inner);
-            DrawRect(new Rect(width - 2f, 1f, 1f, height - 2f), inner);
+            // 主边框
+            DrawRect(new Rect(0f, 0f, width, 1f), borderMain);
+            DrawRect(new Rect(0f, height - 1f, width, 1f), borderMain);
+            DrawRect(new Rect(0f, 0f, 1f, height), borderMain);
+            DrawRect(new Rect(width - 1f, 0f, 1f, height), borderMain);
+
+            // 内层高光
+            DrawRect(new Rect(1f, 1f, width - 2f, 1f), glowInner);
+            DrawRect(new Rect(1f, 1f, 1f, height - 2f), glowInner);
         }
 
         private static Texture2D MakeTexture(Color color)
@@ -714,6 +753,74 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             GUI.color = color;
             GUI.DrawTexture(rect, pixel);
             GUI.color = previous;
+        }
+
+        private void DrawGradientRect(Rect rect, Color topColor, Color bottomColor)
+        {
+            Texture2D gradient = MakeGradientTexture((int)rect.height, topColor, bottomColor);
+            GUI.DrawTexture(rect, gradient);
+            Object.Destroy(gradient);
+        }
+
+        private static Texture2D MakeGradientTexture(int height, Color topColor, Color bottomColor)
+        {
+            Texture2D texture = new Texture2D(1, Mathf.Max(height, 2));
+            for (int i = 0; i < texture.height; i++)
+            {
+                float t = (float)i / (texture.height - 1);
+                texture.SetPixel(0, i, Color.Lerp(topColor, bottomColor, t));
+            }
+            texture.Apply();
+            return texture;
+        }
+
+        private static Texture2D MakeRoundedTexture(Color color, int cornerRadius)
+        {
+            int size = 16;
+            Texture2D texture = new Texture2D(size, size);
+            
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distToCorner = 0f;
+                    if (x < cornerRadius && y < cornerRadius)
+                        distToCorner = Mathf.Sqrt((cornerRadius - x) * (cornerRadius - x) + (cornerRadius - y) * (cornerRadius - y));
+                    else if (x >= size - cornerRadius && y < cornerRadius)
+                        distToCorner = Mathf.Sqrt((x - (size - cornerRadius - 1)) * (x - (size - cornerRadius - 1)) + (cornerRadius - y) * (cornerRadius - y));
+                    else if (x < cornerRadius && y >= size - cornerRadius)
+                        distToCorner = Mathf.Sqrt((cornerRadius - x) * (cornerRadius - x) + (y - (size - cornerRadius - 1)) * (y - (size - cornerRadius - 1)));
+                    else if (x >= size - cornerRadius && y >= size - cornerRadius)
+                        distToCorner = Mathf.Sqrt((x - (size - cornerRadius - 1)) * (x - (size - cornerRadius - 1)) + (y - (size - cornerRadius - 1)) * (y - (size - cornerRadius - 1)));
+                    
+                    if (distToCorner > cornerRadius && distToCorner > 0f)
+                    {
+                        texture.SetPixel(x, y, new Color(color.r, color.g, color.b, 0f));
+                    }
+                    else
+                    {
+                        texture.SetPixel(x, y, color);
+                    }
+                }
+            }
+            
+            texture.Apply();
+            return texture;
+        }
+
+        private static Texture2D MakeGradientButton(Color topColor, Color bottomColor)
+        {
+            int height = 32;
+            Texture2D texture = new Texture2D(1, height);
+            
+            for (int i = 0; i < height; i++)
+            {
+                float t = (float)i / (height - 1);
+                texture.SetPixel(0, i, Color.Lerp(topColor, bottomColor, t));
+            }
+            
+            texture.Apply();
+            return texture;
         }
 
         private static void SaveSettings()
