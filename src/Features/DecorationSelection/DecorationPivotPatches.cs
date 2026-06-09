@@ -50,6 +50,21 @@ namespace ADOFAI.EditorTweaks.Features.DecorationSelection
                     return;
                 }
 
+                // 只在编辑器环境下修正，不影响游戏播放
+                if (ADOBase.editor == null || !ADOBase.isEditingLevel)
+                {
+                    return;
+                }
+
+                // 只对当前选中的装饰修正位置，不影响所有装饰
+                if (ADOBase.editor.selectedDecorations == null 
+                    || ADOBase.editor.selectedDecorations.Count == 0
+                    || __instance.sourceLevelEvent == null
+                    || !ADOBase.editor.selectedDecorations.Contains(__instance.sourceLevelEvent))
+                {
+                    return;
+                }
+
                 Vector2 pivot = __instance.pivotPosVec;
                 if (__instance.placementType == DecPlacementType.CameraAspect && Screen.width != 0)
                 {
