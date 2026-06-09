@@ -47,6 +47,7 @@
 | `ChartRenderEncoderMode` | auto-balanced | 编码档位。默认优先 GPU，并在失败时回退 CPU。 |
 | `ChartRenderCaptureFormat` | rgba | GPU readback 格式。`bgra` 是实验模式。 |
 | `ChartRenderPreviewMode` | full | 渲染时预览模式。可选完整、暗色、极简。 |
+| `ChartRenderAudioFormat` | aac | 音频格式。可选 AAC（有损）、FLAC（无损）、ALAC（无损）。 |
 | `ChartRenderCompletionTailSeconds` | 5 | 谱面结束后额外录制秒数。 |
 | `ChartRenderAudioSyncOffsetMs` | 0 | 高级兜底音频同步偏移。正数让音频提前，负数让音频延后。 |
 | `ChartRenderShowHitJudgments` | true | 导出时是否显示判定文字。 |
@@ -85,6 +86,7 @@
 - 编码档位。
 - 自定义编码字符串，仅在自定义档位下显示。
 - GPU readback 格式。
+- 音频格式（AAC / FLAC / ALAC）。
 - 渲染预览模式。
 - 音频同步偏移。
 
@@ -115,6 +117,7 @@
 - 编码档位非法则回到 `auto-balanced`。
 - 回读格式非法则回到 `rgba`。
 - 预览模式非法则回到 `full`。
+- 音频格式非法则回到 `aac`。
 - 结束尾巴秒数最小为 0。
 - 音频同步偏移范围：-5000 到 5000 毫秒。
 

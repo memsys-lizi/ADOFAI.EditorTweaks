@@ -291,6 +291,31 @@
       "zh": "高级兜底设置。正数让音频提前，负数让音频延后。60 帧下 10 帧约等于 167 毫秒。"
     },
     {
+      "key": "chartRenderAudioFormat",
+      "en": "Audio format",
+      "zh": "音频格式"
+    },
+    {
+      "key": "chartRenderAudioFormatHint",
+      "en": "Audio codec used in the final MP4. AAC is lossy and recommended. FLAC and ALAC are lossless.",
+      "zh": "成品视频中使用的音频编码。AAC 是有损压缩，兼容性最好。FLAC 和 ALAC 是无损格式。"
+    },
+    {
+      "key": "chartRenderAudioFormatAac",
+      "en": "AAC",
+      "zh": "AAC"
+    },
+    {
+      "key": "chartRenderAudioFormatFlac",
+      "en": "FLAC (lossless)",
+      "zh": "FLAC（无损）"
+    },
+    {
+      "key": "chartRenderAudioFormatAlac",
+      "en": "ALAC (lossless)",
+      "zh": "ALAC（无损）"
+    },
+    {
       "key": "chartRenderProfileHint",
       "en": "Changes apply to the next render immediately. Lower CRF means higher quality and larger files.",
       "zh": "修改后下一次渲染立即生效。CRF 越低画质越高、文件越大。"

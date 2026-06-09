@@ -12,6 +12,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public const string CaptureRgba = "rgba";
         public const string CaptureBgra = "bgra";
 
+        public const string AudioFormatAac = "aac";
+        public const string AudioFormatFlac = "flac";
+        public const string AudioFormatAlac = "alac";
+
         public const string PreviewFull = "full";
         public const string PreviewDim = "dim";
         public const string PreviewMinimal = "minimal";
@@ -30,6 +34,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         {
             CaptureRgba,
             CaptureBgra
+        };
+
+        public static readonly string[] AudioFormats =
+        {
+            AudioFormatAac,
+            AudioFormatFlac,
+            AudioFormatAlac
         };
 
         public static readonly string[] PreviewModes =
@@ -75,6 +86,19 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     return PreviewMinimal;
                 default:
                     return PreviewFull;
+            }
+        }
+
+        public static string NormalizeAudioFormat(string? value)
+        {
+            switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case AudioFormatFlac:
+                    return AudioFormatFlac;
+                case AudioFormatAlac:
+                    return AudioFormatAlac;
+                default:
+                    return AudioFormatAac;
             }
         }
     }

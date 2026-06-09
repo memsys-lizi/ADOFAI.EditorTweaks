@@ -211,7 +211,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     settings.ChartRenderPreset,
                     frameCapture.PixelFormatName,
                     budget.MaxEncoderQueueFrames,
-                    settings.ChartRenderAudioSyncOffsetMs);
+                    settings.ChartRenderAudioSyncOffsetMs,
+                    settings.ChartRenderAudioFormat);
                 encoder.BeginVideo();
                 EncoderName = encoder.EncoderName;
                 BeginForcedVisualClock();

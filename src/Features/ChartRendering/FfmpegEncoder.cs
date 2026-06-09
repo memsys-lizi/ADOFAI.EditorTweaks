@@ -25,6 +25,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly string customPreset;
         private readonly string inputPixelFormat;
         private readonly int queueCapacityFrames;
+        private readonly string audioFormat;
         private readonly float audioSyncOffsetMs;
         private Process? process;
         private BlockingCollection<QueuedFrame>? frameQueue;
@@ -44,7 +45,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             string customPreset,
             string inputPixelFormat,
             int queueCapacityFrames,
-            float audioSyncOffsetMs)
+            float audioSyncOffsetMs,
+            string audioFormat)
         {
             this.ffmpegPath = ffmpegPath;
             this.tempVideoPath = tempVideoPath;
@@ -59,6 +61,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.inputPixelFormat = ChartRenderOptionValues.NormalizeCaptureFormat(inputPixelFormat);
             this.queueCapacityFrames = Math.Max(1, queueCapacityFrames);
             this.audioSyncOffsetMs = audioSyncOffsetMs;
+            this.audioFormat = ChartRenderOptionValues.NormalizeAudioFormat(audioFormat);
         }
 
         public string EncoderName { get; private set; } = "unknown";
@@ -161,7 +164,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private string BuildMuxArguments(string audioPath)
         {
             string baseInputs = "-y -i " + Quote(tempVideoPath) + " -i " + Quote(audioPath) + " ";
-            string outputArgs = "-c:v copy -c:a aac -b:a 320k -ac 2 -movflags +faststart " + Quote(finalVideoPath);
+            string outputArgs = "-c:v copy " + GetAudioCodecArguments() + " -movflags +faststart " + Quote(finalVideoPath);
             if (Math.Abs(audioSyncOffsetMs) < 0.001f)
             {
                 return baseInputs + "-map 0:v:0 -map 1:a:0 " + outputArgs;
@@ -259,6 +262,19 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             }
 
             return customPreset;
+        }
+
+        private string GetAudioCodecArguments()
+        {
+            switch (audioFormat)
+            {
+                case ChartRenderOptionValues.AudioFormatFlac:
+                    return "-c:a flac";
+                case ChartRenderOptionValues.AudioFormatAlac:
+                    return "-c:a alac";
+                default:
+                    return "-c:a aac -b:a 320k -ac 2";
+            }
         }
 
         private string GetVideoEncoderArguments()

@@ -30,6 +30,7 @@ namespace ADOFAI.EditorTweaks
         private const string DefaultChartRenderPreset = "veryfast";
         private const string DefaultChartRenderEncoderMode = ChartRenderOptionValues.EncoderAutoBalanced;
         private const string DefaultChartRenderCaptureFormat = ChartRenderOptionValues.CaptureRgba;
+        private const string DefaultChartRenderAudioFormat = ChartRenderOptionValues.AudioFormatAac;
         private const string DefaultChartRenderPreviewMode = ChartRenderOptionValues.PreviewFull;
 
         public bool EnableNumericDrag = true;
@@ -79,6 +80,8 @@ namespace ADOFAI.EditorTweaks
         public string ChartRenderCaptureFormat = DefaultChartRenderCaptureFormat;
 
         public string ChartRenderPreviewMode = DefaultChartRenderPreviewMode;
+
+        public string ChartRenderAudioFormat = DefaultChartRenderAudioFormat;
 
         public float ChartRenderCompletionTailSeconds = 5f;
 
@@ -144,6 +147,7 @@ namespace ADOFAI.EditorTweaks
             string oldRenderEncoderMode = ChartRenderEncoderMode;
             string oldRenderCaptureFormat = ChartRenderCaptureFormat;
             string oldRenderPreviewMode = ChartRenderPreviewMode;
+            string oldRenderAudioFormat = ChartRenderAudioFormat;
             float oldRenderTail = ChartRenderCompletionTailSeconds;
             float oldRenderAudioSyncOffset = ChartRenderAudioSyncOffsetMs;
             bool oldRenderJudgments = ChartRenderShowHitJudgments;
@@ -213,6 +217,7 @@ namespace ADOFAI.EditorTweaks
                 }
 
                 ChartRenderCaptureFormat = DrawChoiceSettingRow(Text("chartRenderCaptureFormat"), Text("chartRenderCaptureFormatHint"), ChartRenderCaptureFormat, ChartRenderOptionValues.CaptureFormats, GetCaptureFormatLabels(), DefaultChartRenderCaptureFormat);
+                ChartRenderAudioFormat = DrawChoiceSettingRow(Text("chartRenderAudioFormat"), Text("chartRenderAudioFormatHint"), ChartRenderAudioFormat, ChartRenderOptionValues.AudioFormats, GetAudioFormatLabels(), DefaultChartRenderAudioFormat);
                 ChartRenderPreviewMode = DrawChoiceSettingRow(Text("chartRenderPreviewMode"), Text("chartRenderPreviewModeHint"), ChartRenderPreviewMode, ChartRenderOptionValues.PreviewModes, GetPreviewModeLabels(), DefaultChartRenderPreviewMode);
                 ChartRenderAudioSyncOffsetMs = DrawFloatSettingRow(Text("chartRenderAudioSyncOffsetMs"), Text("chartRenderAudioSyncOffsetMsHint"), ChartRenderAudioSyncOffsetMs, ref renderAudioSyncOffsetText, MinChartRenderAudioSyncOffsetMs, DefaultChartRenderAudioSyncOffsetMs);
             }
@@ -230,6 +235,7 @@ namespace ADOFAI.EditorTweaks
                 || oldRenderEncoderMode != ChartRenderEncoderMode
                 || oldRenderCaptureFormat != ChartRenderCaptureFormat
                 || oldRenderPreviewMode != ChartRenderPreviewMode
+                || oldRenderAudioFormat != ChartRenderAudioFormat
                 || oldRenderTail != ChartRenderCompletionTailSeconds
                 || oldRenderAudioSyncOffset != ChartRenderAudioSyncOffsetMs
                 || oldRenderJudgments != ChartRenderShowHitJudgments
@@ -608,6 +614,16 @@ namespace ADOFAI.EditorTweaks
             };
         }
 
+        private static string[] GetAudioFormatLabels()
+        {
+            return new[]
+            {
+                Text("chartRenderAudioFormatAac"),
+                Text("chartRenderAudioFormatFlac"),
+                Text("chartRenderAudioFormatAlac")
+            };
+        }
+
         private string GetBitrateHint()
         {
             int recommended = ChartRenderBitratePresets.GetRecommendedBitrateMbps(ChartRenderWidth, ChartRenderHeight, ChartRenderFps);
@@ -672,6 +688,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderEncoderMode = ChartRenderOptionValues.NormalizeEncoderMode(ChartRenderEncoderMode);
             ChartRenderCaptureFormat = ChartRenderOptionValues.NormalizeCaptureFormat(ChartRenderCaptureFormat);
             ChartRenderPreviewMode = ChartRenderOptionValues.NormalizePreviewMode(ChartRenderPreviewMode);
+            ChartRenderAudioFormat = ChartRenderOptionValues.NormalizeAudioFormat(ChartRenderAudioFormat);
             ChartRenderCompletionTailSeconds = Mathf.Max(0f, ChartRenderCompletionTailSeconds);
             ChartRenderAudioSyncOffsetMs = Mathf.Clamp(ChartRenderAudioSyncOffsetMs, MinChartRenderAudioSyncOffsetMs, MaxChartRenderAudioSyncOffsetMs);
         }
@@ -694,6 +711,7 @@ namespace ADOFAI.EditorTweaks
             ChartRenderEncoderMode = DefaultChartRenderEncoderMode;
             ChartRenderCaptureFormat = DefaultChartRenderCaptureFormat;
             ChartRenderPreviewMode = DefaultChartRenderPreviewMode;
+            ChartRenderAudioFormat = DefaultChartRenderAudioFormat;
             ChartRenderCompletionTailSeconds = DefaultChartRenderCompletionTailSeconds;
             ChartRenderAudioSyncOffsetMs = DefaultChartRenderAudioSyncOffsetMs;
             ChartRenderShowHitJudgments = DefaultChartRenderShowHitJudgments;
