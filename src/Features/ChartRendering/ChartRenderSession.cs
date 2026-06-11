@@ -212,7 +212,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     frameCapture.PixelFormatName,
                     budget.MaxEncoderQueueFrames,
                     settings.ChartRenderAudioSyncOffsetMs,
-                    settings.ChartRenderAudioFormat);
+                    settings.ChartRenderAudioFormat,
+                    settings.ChartRenderCustomMuxArgs);
                 encoder.BeginVideo();
                 EncoderName = encoder.EncoderName;
                 BeginForcedVisualClock();
@@ -474,7 +475,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                     + renderRange.FileNameSuffix
                     + "_"
                     + DateTime.Now.ToString("yyyyMMdd_HHmmss")
-                    + ".mp4";
+                    + ChartRenderOptionValues.GetVideoFormatExtension(settings.ChartRenderVideoFormat);
                 outputPath = Path.Combine(export, fileName);
                 result.OutputPath = outputPath;
                 WriteLog("Render range: " + renderRange.DisplayText

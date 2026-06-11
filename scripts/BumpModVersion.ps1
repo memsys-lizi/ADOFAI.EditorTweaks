@@ -15,7 +15,7 @@ if (-not (Test-Path -LiteralPath $InfoPath)) {
 $json = Get-Content -LiteralPath $InfoPath -Raw | ConvertFrom-Json
 $version = [string]$json.Version
 if ($version -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
-    throw "Unsupported mod version format '$version'. Expected semantic version like 1.2.3."
+    throw "Unsupported mod version format '$version'. Expected semantic version like 1.2.4."
 }
 
 $major = [int]$Matches[1]

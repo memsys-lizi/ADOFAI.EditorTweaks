@@ -12,6 +12,10 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public const string CaptureRgba = "rgba";
         public const string CaptureBgra = "bgra";
 
+        public const string VideoFormatMp4 = "mp4";
+        public const string VideoFormatMkv = "mkv";
+        public const string VideoFormatMov = "mov";
+
         public const string AudioFormatAac = "aac";
         public const string AudioFormatFlac = "flac";
         public const string AudioFormatAlac = "alac";
@@ -41,6 +45,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             AudioFormatAac,
             AudioFormatFlac,
             AudioFormatAlac
+        };
+
+        public static readonly string[] VideoFormats =
+        {
+            VideoFormatMp4,
+            VideoFormatMkv,
+            VideoFormatMov
         };
 
         public static readonly string[] PreviewModes =
@@ -100,6 +111,24 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 default:
                     return AudioFormatAac;
             }
+        }
+
+        public static string NormalizeVideoFormat(string? value)
+        {
+            switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case VideoFormatMkv:
+                    return VideoFormatMkv;
+                case VideoFormatMov:
+                    return VideoFormatMov;
+                default:
+                    return VideoFormatMp4;
+            }
+        }
+
+        public static string GetVideoFormatExtension(string format)
+        {
+            return "." + NormalizeVideoFormat(format);
         }
     }
 }

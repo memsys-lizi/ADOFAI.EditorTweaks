@@ -394,6 +394,7 @@ namespace ADOFAI.EditorTweaks.Features.EditorOverlay
             return settings.ChartRenderWidth + "x" + settings.ChartRenderHeight
                 + " @ " + settings.ChartRenderFps + "fps"
                 + " | " + bitrate + " Mbps"
+                + " | ." + ChartRenderOptionValues.NormalizeVideoFormat(settings.ChartRenderVideoFormat)
                 + " | " + GetChartRenderRangeText();
         }
 

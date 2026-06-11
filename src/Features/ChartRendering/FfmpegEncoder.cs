@@ -26,6 +26,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private readonly string inputPixelFormat;
         private readonly int queueCapacityFrames;
         private readonly string audioFormat;
+        private readonly string customMuxArgs;
         private readonly float audioSyncOffsetMs;
         private Process? process;
         private BlockingCollection<QueuedFrame>? frameQueue;
@@ -46,7 +47,8 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             string inputPixelFormat,
             int queueCapacityFrames,
             float audioSyncOffsetMs,
-            string audioFormat)
+            string audioFormat,
+            string customMuxArgs)
         {
             this.ffmpegPath = ffmpegPath;
             this.tempVideoPath = tempVideoPath;
@@ -62,6 +64,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             this.queueCapacityFrames = Math.Max(1, queueCapacityFrames);
             this.audioSyncOffsetMs = audioSyncOffsetMs;
             this.audioFormat = ChartRenderOptionValues.NormalizeAudioFormat(audioFormat);
+            this.customMuxArgs = (customMuxArgs ?? string.Empty).Trim();
         }
 
         public string EncoderName { get; private set; } = "unknown";
@@ -164,9 +167,18 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         private string BuildMuxArguments(string audioPath)
         {
             string baseInputs = "-y -i " + Quote(tempVideoPath) + " -i " + Quote(audioPath) + " ";
-            string outputArgs = "-c:v copy " + GetAudioCodecArguments() + " -movflags +faststart " + Quote(finalVideoPath);
+            string outputArgs = (!string.IsNullOrWhiteSpace(customMuxArgs)
+                    ? customMuxArgs + " "
+                    : "-c:v copy " + GetAudioCodecArguments() + " -movflags +faststart ")
+                + Quote(finalVideoPath);
+
             if (Math.Abs(audioSyncOffsetMs) < 0.001f)
             {
+                if (!string.IsNullOrWhiteSpace(customMuxArgs))
+                {
+                    return baseInputs + outputArgs;
+                }
+
                 return baseInputs + "-map 0:v:0 -map 1:a:0 " + outputArgs;
             }
 
@@ -179,6 +191,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             {
                 int delayMs = Math.Max(0, (int)Math.Round(Math.Abs(audioSyncOffsetMs)));
                 filter = "[1:a]adelay=" + delayMs.ToString(CultureInfo.InvariantCulture) + ":all=1,asetpts=PTS-STARTPTS[a]";
+            }
+
+            if (!string.IsNullOrWhiteSpace(customMuxArgs))
+            {
+                return baseInputs + "-filter_complex " + Quote(filter) + " " + outputArgs;
             }
 
             return baseInputs + "-filter_complex " + Quote(filter) + " -map 0:v:0 -map " + Quote("[a]") + " " + outputArgs;

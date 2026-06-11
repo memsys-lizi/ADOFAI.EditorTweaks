@@ -291,6 +291,66 @@
       "zh": "高级兜底设置。正数让音频提前，负数让音频延后。60 帧下 10 帧约等于 167 毫秒。"
     },
     {
+      "key": "chartRenderVideoFormat",
+      "en": "Video format",
+      "zh": "视频输出格式"
+    },
+    {
+      "key": "chartRenderVideoFormatHint",
+      "en": "Output container format. MP4 has the best compatibility. MKV supports more codecs. MOV is Apple-oriented.",
+      "zh": "输出容器格式。MP4 兼容性最好。MKV 支持的编码更多。MOV 偏向苹果生态。"
+    },
+    {
+      "key": "chartRenderVideoFormatMp4",
+      "en": "MP4 (H.264/AAC)",
+      "zh": "MP4（H.264/AAC）"
+    },
+    {
+      "key": "chartRenderVideoFormatMkv",
+      "en": "MKV (Matroska)",
+      "zh": "MKV（Matroska）"
+    },
+    {
+      "key": "chartRenderVideoFormatMov",
+      "en": "MOV (QuickTime)",
+      "zh": "MOV（QuickTime）"
+    },
+    {
+      "key": "chartRenderAdvancedWarning",
+      "en": "WARNING: The following settings are intended for experienced users only. Incorrect values may cause rendering failures, excessively large files, unplayable output, or system instability. If you are not familiar with video encoding concepts such as CRF, bitrate, encoder presets, pixel formats, or audio codecs, please close this section and use the defaults. Proceed at your own risk.",
+      "zh": "警告：以下设置仅供有经验的用户使用。错误的参数值可能导致渲染失败、文件体积过大、输出无法播放或系统不稳定。如果您不熟悉 CRF、码率、编码预设、像素格式、音频编码等概念，请关闭此区域并使用默认设置。继续操作风险自负。"
+    },
+    {
+      "key": "chartRenderHelpButton",
+      "en": "Open FFmpeg Reference Help",
+      "zh": "打开 FFmpeg 参数参考帮助"
+    },
+    {
+      "key": "chartRenderShowProfessional",
+      "en": "Show professional FFmpeg settings",
+      "zh": "显示专业 FFmpeg 设置"
+    },
+    {
+      "key": "chartRenderHideProfessional",
+      "en": "Hide professional FFmpeg settings",
+      "zh": "隐藏专业 FFmpeg 设置"
+    },
+    {
+      "key": "chartRenderProfessionalHint",
+      "en": "Enter a complete custom FFmpeg mux argument string. When filled, it replaces all auto-generated output parameters including video codec, audio codec, container flags, and map directives. The system still handles input files and audio sync offset automatically. Example: -map 0:v:0 -map 1:a:0 -c:v copy -c:a flac",
+      "zh": "输入完整的自定义 FFmpeg 合成参数字符串。填写后将完全取代自动生成的输出参数（包括视频编码、音频编码、容器标记和映射指令）。系统仍会自动处理输入文件和音频同步偏移。示例：-map 0:v:0 -map 1:a:0 -c:v copy -c:a flac"
+    },
+    {
+      "key": "chartRenderCustomMuxArgs",
+      "en": "Custom FFmpeg mux arguments",
+      "zh": "自定义 FFmpeg 合成参数"
+    },
+    {
+      "key": "chartRenderCustomMuxArgsHint",
+      "en": "Leave empty to use auto-generated parameters. This field is for expert troubleshooting and advanced output customization only.",
+      "zh": "留空则使用自动生成参数。此字段仅供专家排查和高级输出自定义使用。"
+    },
+    {
       "key": "chartRenderAudioFormat",
       "en": "Audio format",
       "zh": "音频格式"
