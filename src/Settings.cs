@@ -214,6 +214,11 @@ namespace ADOFAI.EditorTweaks
                 ChartRenderAdvancedSettingsExpanded = !ChartRenderAdvancedSettingsExpanded;
             }
 
+            if (GUILayout.Button(ChartRenderProfessionalSettingsExpanded ? Text("chartRenderHideProfessional") : Text("chartRenderShowProfessional"), GUILayout.Width(170)))
+            {
+                ChartRenderProfessionalSettingsExpanded = !ChartRenderProfessionalSettingsExpanded;
+            }
+
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
@@ -221,10 +226,6 @@ namespace ADOFAI.EditorTweaks
             {
                 GUILayout.Label(Text("chartRenderAdvancedWarning"), hintStyle);
                 GUILayout.Label(Text("chartRenderAdvancedHint"), hintStyle);
-                if (GUILayout.Button(Text("chartRenderHelpButton"), GUILayout.Width(200)))
-                {
-                    OpenHelpFile(modEntry);
-                }
 
                 ChartRenderWorkspaceDirectory = DrawTextSettingRow(Text("chartRenderWorkspaceDirectory"), Text("chartRenderWorkspaceDirectoryHint"), ChartRenderWorkspaceDirectory, GetDefaultWorkspaceDirectory(modEntry));
                 ChartRenderEncoderMode = DrawChoiceSettingRow(Text("chartRenderEncoderMode"), Text("chartRenderEncoderModeHint"), ChartRenderEncoderMode, ChartRenderOptionValues.EncoderModes, GetEncoderModeLabels(), DefaultChartRenderEncoderMode);
@@ -239,22 +240,17 @@ namespace ADOFAI.EditorTweaks
                 ChartRenderAudioFormat = DrawChoiceSettingRow(Text("chartRenderAudioFormat"), Text("chartRenderAudioFormatHint"), ChartRenderAudioFormat, ChartRenderOptionValues.AudioFormats, GetAudioFormatLabels(), DefaultChartRenderAudioFormat);
                 ChartRenderPreviewMode = DrawChoiceSettingRow(Text("chartRenderPreviewMode"), Text("chartRenderPreviewModeHint"), ChartRenderPreviewMode, ChartRenderOptionValues.PreviewModes, GetPreviewModeLabels(), DefaultChartRenderPreviewMode);
                 ChartRenderAudioSyncOffsetMs = DrawFloatSettingRow(Text("chartRenderAudioSyncOffsetMs"), Text("chartRenderAudioSyncOffsetMsHint"), ChartRenderAudioSyncOffsetMs, ref renderAudioSyncOffsetText, MinChartRenderAudioSyncOffsetMs, DefaultChartRenderAudioSyncOffsetMs);
+            }
 
-                GUILayout.Space(6);
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button(ChartRenderProfessionalSettingsExpanded ? Text("chartRenderHideProfessional") : Text("chartRenderShowProfessional"), GUILayout.Width(200)))
+            if (ChartRenderProfessionalSettingsExpanded)
+            {
+                GUILayout.Label(Text("chartRenderProfessionalHint"), hintStyle);
+                if (GUILayout.Button(Text("chartRenderHelpButton"), GUILayout.Width(200)))
                 {
-                    ChartRenderProfessionalSettingsExpanded = !ChartRenderProfessionalSettingsExpanded;
+                    OpenHelpFile(modEntry);
                 }
 
-                GUILayout.FlexibleSpace();
-                GUILayout.EndHorizontal();
-
-                if (ChartRenderProfessionalSettingsExpanded)
-                {
-                    GUILayout.Label(Text("chartRenderProfessionalHint"), hintStyle);
-                    ChartRenderCustomMuxArgs = DrawStringSettingRow(Text("chartRenderCustomMuxArgs"), Text("chartRenderCustomMuxArgsHint"), ChartRenderCustomMuxArgs, ref renderCustomMuxArgsText, string.Empty);
-                }
+                ChartRenderCustomMuxArgs = DrawStringSettingRow(Text("chartRenderCustomMuxArgs"), Text("chartRenderCustomMuxArgsHint"), ChartRenderCustomMuxArgs, ref renderCustomMuxArgsText, string.Empty);
             }
 
             GUILayout.Space(2);
