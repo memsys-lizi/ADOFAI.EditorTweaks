@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using ADOFAI.EditorTweaks.Features.ChartRendering;
+using ADOFAI.EditorTweaks.Features.CloudSettings;
 using UnityModManagerNet;
 using UnityEngine;
 
@@ -703,6 +704,7 @@ namespace ADOFAI.EditorTweaks
         {
             NormalizeChartRenderSettings();
             Save(this, modEntry);
+            CloudSettingsManager.WriteToCloud(this);
         }
 
         public void EnsureDefaults(UnityModManager.ModEntry modEntry)

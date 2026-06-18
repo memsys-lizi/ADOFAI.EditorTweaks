@@ -90,7 +90,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             try
             {
                 RDC.auto = true;
-                controller.responsive = true;
+                controller.moving = false;
                 controller.paused = false;
                 controller.multipressPenalty = false;
                 controller.multipressAndHasPressedFirstPress = false;
