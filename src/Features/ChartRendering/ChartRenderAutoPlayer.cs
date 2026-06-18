@@ -90,7 +90,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             try
             {
                 RDC.auto = true;
-                controller.moving = false;
+                ADOBase.playerManager.SetAllPlayerResponsive(true);
                 controller.paused = false;
                 controller.multipressPenalty = false;
                 controller.multipressAndHasPressedFirstPress = false;
