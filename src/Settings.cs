@@ -143,6 +143,14 @@ namespace ADOFAI.EditorTweaks
 
         private bool textFieldsInitialized;
 
+        private string cloudStatusMessage = string.Empty;
+        private bool cloudStatusIsError;
+
+        private static GUIStyle? cloudButtonStyle;
+        private static GUIStyle? cloudSectionBoxStyle;
+        private static GUIStyle? cloudTitleStyle;
+        private static GUIStyle? cloudStatusStyle;
+
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
             EnsureStyles();
@@ -172,6 +180,8 @@ namespace ADOFAI.EditorTweaks
             GUILayout.BeginVertical(panelStyle);
             GUILayout.Label(Text("title"), titleStyle);
             GUILayout.Space(4);
+
+            DrawCloudSyncSection(modEntry);
 
             DrawSection(Text("fixesSection"));
             EnableCameraRelativeDecorationDragFix = DrawToggleRow(EnableCameraRelativeDecorationDragFix, Text("fixCameraRelativeDecorationDrag"));
@@ -356,6 +366,33 @@ namespace ADOFAI.EditorTweaks
                 fontSize = 12,
                 alignment = TextAnchor.MiddleCenter,
                 fixedHeight = 22
+            };
+
+            cloudButtonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 34,
+                margin = new RectOffset(4, 4, 4, 4),
+                padding = new RectOffset(14, 14, 6, 6)
+            };
+            cloudSectionBoxStyle = new GUIStyle(GUI.skin.box)
+            {
+                padding = new RectOffset(12, 12, 8, 8),
+                margin = new RectOffset(0, 0, 4, 12)
+            };
+            cloudTitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.82f, 0.92f, 1f, 1f) }
+            };
+            cloudStatusStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(0, 0, 3, 0)
             };
         }
 
@@ -704,7 +741,6 @@ namespace ADOFAI.EditorTweaks
         {
             NormalizeChartRenderSettings();
             Save(this, modEntry);
-            CloudSettingsManager.WriteToCloud(this);
         }
 
         public void EnsureDefaults(UnityModManager.ModEntry modEntry)
@@ -781,6 +817,86 @@ namespace ADOFAI.EditorTweaks
             renderPresetText = ChartRenderPreset;
             renderTailSecondsText = FormatFloat(ChartRenderCompletionTailSeconds);
             renderAudioSyncOffsetText = FormatFloat(ChartRenderAudioSyncOffsetMs);
+        }
+
+        private void DrawCloudSyncSection(UnityModManager.ModEntry modEntry)
+        {
+            bool steamAvailable = CloudSettingsManager.IsSteamAvailable;
+
+            GUILayout.BeginVertical(cloudSectionBoxStyle);
+            Rect cloudRect = GUILayoutUtility.GetRect(1f, 1f, GUILayout.ExpandWidth(true));
+            Color cloudBg = steamAvailable ? new Color(0.12f, 0.28f, 0.46f, 0.55f) : new Color(0.32f, 0.16f, 0.16f, 0.55f);
+            EditorTweaksGui.DrawRect(cloudRect, cloudBg);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Text("cloudSyncSection"), cloudTitleStyle);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (!steamAvailable)
+            {
+                GUILayout.Label(Text("cloudSteamNotAvailable"), cloudStatusStyle);
+                GUILayout.EndVertical();
+                return;
+            }
+
+            GUILayout.BeginHorizontal();
+            Color prevBg = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.28f, 0.55f, 0.85f);
+            if (GUILayout.Button(Text("cloudDownload"), cloudButtonStyle, GUILayout.Height(34), GUILayout.Width(180)))
+            {
+                DownloadFromCloud(modEntry);
+            }
+
+            GUI.backgroundColor = new Color(0.85f, 0.55f, 0.28f);
+            if (GUILayout.Button(Text("cloudUpload"), cloudButtonStyle, GUILayout.Height(34), GUILayout.Width(180)))
+            {
+                UploadToCloud(modEntry);
+            }
+
+            GUI.backgroundColor = prevBg;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(cloudStatusMessage))
+            {
+                Color prevContent = GUI.contentColor;
+                GUI.contentColor = cloudStatusIsError ? new Color(1f, 0.55f, 0.55f) : new Color(0.55f, 1f, 0.55f);
+                GUILayout.Label(cloudStatusMessage, cloudStatusStyle);
+                GUI.contentColor = prevContent;
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        private void UploadToCloud(UnityModManager.ModEntry modEntry)
+        {
+            NormalizeChartRenderSettings();
+            Save(this, modEntry);
+            bool success = CloudSettingsManager.WriteToCloud(this);
+            cloudStatusMessage = success ? Text("cloudUploadSuccess") : Text("cloudUploadFailed");
+            cloudStatusIsError = !success;
+        }
+
+        private void DownloadFromCloud(UnityModManager.ModEntry modEntry)
+        {
+            if (!CloudSettingsManager.HasCloudFile())
+            {
+                cloudStatusMessage = Text("cloudNoFile");
+                cloudStatusIsError = true;
+                return;
+            }
+
+            bool success = CloudSettingsManager.TryReadFromCloud(this);
+            if (success)
+            {
+                Save(this, modEntry);
+                EnsureTextFields();
+                SyncChartRenderTextFields();
+            }
+
+            cloudStatusMessage = success ? Text("cloudDownloadSuccess") : Text("cloudDownloadFailed");
+            cloudStatusIsError = !success;
         }
 
         private static string GetDefaultWorkspaceDirectory(UnityModManager.ModEntry modEntry)

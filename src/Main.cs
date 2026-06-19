@@ -1,5 +1,4 @@
 using System.Reflection;
-using ADOFAI.EditorTweaks.Features.CloudSettings;
 using ADOFAI.EditorTweaks.Features.EditorOverlay;
 using HarmonyLib;
 using UnityModManagerNet;
@@ -20,8 +19,6 @@ namespace ADOFAI.EditorTweaks
             Localization.Load(modEntry);
             Settings = Settings.Load(modEntry);
             Settings.EnsureDefaults(modEntry);
-
-            CloudSettingsManager.TryReadFromCloud(Settings);
 
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = Settings.OnGUI;

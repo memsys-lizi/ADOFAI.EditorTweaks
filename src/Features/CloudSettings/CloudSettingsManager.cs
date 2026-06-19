@@ -13,6 +13,13 @@ namespace ADOFAI.EditorTweaks.Features.CloudSettings
         private const string VersionKey = "cloud_version";
         private const string SettingsKey = "settings";
 
+        public static bool IsSteamAvailable => SteamManager.Initialized;
+
+        public static bool HasCloudFile()
+        {
+            return SteamManager.Initialized && SteamRemoteStorage.FileExists(CloudFileName);
+        }
+
         public static bool TryReadFromCloud(Settings settings)
         {
             if (!SteamManager.Initialized)

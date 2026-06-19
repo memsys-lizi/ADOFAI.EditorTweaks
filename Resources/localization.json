@@ -529,6 +529,51 @@
       "key": "chartRendererFailed",
       "en": "Render failed",
       "zh": "渲染失败"
+    },
+    {
+      "key": "cloudSyncSection",
+      "en": "Steam Cloud Sync",
+      "zh": "Steam 云存档同步"
+    },
+    {
+      "key": "cloudUpload",
+      "en": "Upload Settings",
+      "zh": "上传设置存档"
+    },
+    {
+      "key": "cloudDownload",
+      "en": "Download Settings",
+      "zh": "下载设置存档"
+    },
+    {
+      "key": "cloudSteamNotAvailable",
+      "en": "Steam is not available. Launch the game through Steam to use cloud sync.",
+      "zh": "Steam 不可用。请通过 Steam 启动游戏以使用云同步。"
+    },
+    {
+      "key": "cloudUploadSuccess",
+      "en": "Settings uploaded to cloud successfully.",
+      "zh": "设置已上传至云端。"
+    },
+    {
+      "key": "cloudUploadFailed",
+      "en": "Upload failed. Check the log for details.",
+      "zh": "上传失败，请查看日志。"
+    },
+    {
+      "key": "cloudDownloadSuccess",
+      "en": "Settings downloaded from cloud successfully.",
+      "zh": "已从云端下载设置。"
+    },
+    {
+      "key": "cloudDownloadFailed",
+      "en": "Download failed. Check the log for details.",
+      "zh": "下载失败，请查看日志。"
+    },
+    {
+      "key": "cloudNoFile",
+      "en": "No cloud save found. Upload your settings first.",
+      "zh": "云端没有存档，请先上传设置。"
     }
   ]
 }
