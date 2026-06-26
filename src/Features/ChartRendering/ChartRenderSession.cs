@@ -81,6 +81,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             IsAutoPlaybackReady = false;
             AutoPlaybackEndFloor = int.MaxValue;
             renderAutoPlaybackEnabled = false;
+            ChartRenderCustomFrameRate.Begin();
             progress.Reset();
             MemoryBudgetText = string.Empty;
             QueueBudgetText = string.Empty;
@@ -257,7 +258,15 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
                 if (!Try(() =>
                 {
                     audioCapture!.CaptureFrame();
-                    framePipeline!.RequestFrame(frameCapture!, requestedFrames);
+                    if (ChartRenderCustomFrameRate.ShouldCaptureFrame())
+                    {
+                        framePipeline!.RequestFrame(frameCapture!, requestedFrames);
+                    }
+                    else
+                    {
+                        framePipeline!.RepeatLastFrame(requestedFrames);
+                    }
+
                     requestedFrames++;
                     SetForcedFrameTimeFromAudioCursor(requestedFrames);
                     ChartRenderDiagnostics.LogFrame(requestedFrames, renderFrameLimit);
@@ -435,6 +444,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             DisableRenderAutoPlayback(resetEndFloor: true);
             IsActive = false;
             IsRendering = false;
+            ChartRenderCustomFrameRate.End();
             ChartRenderVisualClock.End();
             RestoreState();
             ChartRenderDiagnostics.End();
@@ -551,6 +561,11 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             if (!renderRange.IsPartial)
             {
                 return true;
+            }
+
+            if (renderRange.StartFloor <= 0)
+            {
+                return IsPlaybackScheduled();
             }
 
             scrController controller = ADOBase.controller;
@@ -742,6 +757,7 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             encoder?.Dispose();
             audioCapture?.Dispose();
             audioCapture = null;
+            ChartRenderCustomFrameRate.End();
             ChartRenderVisualClock.End();
             ChartRenderDiagnostics.End();
 

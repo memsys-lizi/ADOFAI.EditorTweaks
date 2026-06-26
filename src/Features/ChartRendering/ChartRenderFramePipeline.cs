@@ -6,11 +6,13 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
 {
     internal sealed class ChartRenderFramePipeline
     {
-        private readonly Queue<ChartFrameCapture.PendingFrame> pendingFrames = new Queue<ChartFrameCapture.PendingFrame>();
+        private readonly Queue<QueuedFrameOutput> pendingFrames = new Queue<QueuedFrameOutput>();
         private readonly Queue<byte[]> frameBufferPool = new Queue<byte[]>();
         private readonly object frameBufferPoolLock = new object();
         private readonly int frameByteLength;
         private readonly int maxPendingGpuFrames;
+        private byte[]? lastFrameBytes;
+        private int pendingGpuFrames;
 
         public ChartRenderFramePipeline(ChartRenderMemoryBudget budget)
         {
@@ -27,52 +29,58 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public void Reset()
         {
             pendingFrames.Clear();
+            pendingGpuFrames = 0;
+            lastFrameBytes = null;
             WrittenFrames = 0;
             DuplicateFrames = 0;
         }
 
         public void RequestFrame(ChartFrameCapture frameCapture, int index)
         {
-            pendingFrames.Enqueue(frameCapture.RequestFrame(index));
+            pendingFrames.Enqueue(QueuedFrameOutput.Capture(frameCapture.RequestFrame(index)));
+            pendingGpuFrames++;
+        }
+
+        public void RepeatLastFrame(int index)
+        {
+            pendingFrames.Enqueue(QueuedFrameOutput.Repeat(index));
         }
 
         public void DrainReadyFrames(FfmpegEncoder encoder, Func<bool> isCancelRequested)
         {
-            while (pendingFrames.Count > 0 && pendingFrames.Peek().Done)
+            while (pendingFrames.Count > 0)
             {
-                ChartFrameCapture.PendingFrame pending = pendingFrames.Dequeue();
-                byte[] buffer = RentFrameBuffer();
-                try
+                QueuedFrameOutput output = pendingFrames.Peek();
+                if (!output.Done)
                 {
-                    pending.Complete(buffer);
-                    encoder.WriteFrame(buffer, pending.ByteLength, pending.RepeatCount, ReturnFrameBuffer, isCancelRequested);
-                    buffer = null!;
-                }
-                finally
-                {
-                    if (buffer != null)
-                    {
-                        ReturnFrameBuffer(buffer);
-                    }
+                    return;
                 }
 
-                WrittenFrames += pending.RepeatCount;
-                DuplicateFrames += Math.Max(0, pending.RepeatCount - 1);
+                pendingFrames.Dequeue();
+                if (output.PendingFrame != null)
+                {
+                    pendingGpuFrames = Math.Max(0, pendingGpuFrames - 1);
+                    WriteCapturedFrame(output.PendingFrame, encoder, isCancelRequested);
+                }
+                else
+                {
+                    WriteRepeatedFrame(output.Index, encoder, isCancelRequested);
+                }
             }
         }
 
         public void WaitForPendingSlot(FfmpegEncoder encoder, Func<bool> isCancelRequested)
         {
-            while (pendingFrames.Count >= maxPendingGpuFrames && !isCancelRequested())
+            while (pendingGpuFrames >= maxPendingGpuFrames && !isCancelRequested())
             {
-                int before = pendingFrames.Count;
+                int before = pendingGpuFrames;
                 DrainReadyFrames(encoder, isCancelRequested);
-                if (pendingFrames.Count < maxPendingGpuFrames)
+                if (pendingGpuFrames < maxPendingGpuFrames)
                 {
                     return;
                 }
 
-                if (pendingFrames.Count == before)
+                if (pendingGpuFrames == before)
                 {
                     Thread.Sleep(1);
                 }
@@ -82,6 +90,63 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
         public void Clear()
         {
             pendingFrames.Clear();
+            pendingGpuFrames = 0;
+        }
+
+        private void WriteCapturedFrame(ChartFrameCapture.PendingFrame pending, FfmpegEncoder encoder, Func<bool> isCancelRequested)
+        {
+            byte[] buffer = RentFrameBuffer();
+            try
+            {
+                pending.Complete(buffer);
+                EnsureLastFrameBuffer();
+                Buffer.BlockCopy(buffer, 0, lastFrameBytes!, 0, pending.ByteLength);
+                encoder.WriteFrame(buffer, pending.ByteLength, pending.RepeatCount, ReturnFrameBuffer, isCancelRequested);
+                buffer = null!;
+            }
+            finally
+            {
+                if (buffer != null)
+                {
+                    ReturnFrameBuffer(buffer);
+                }
+            }
+
+            WrittenFrames += pending.RepeatCount;
+            DuplicateFrames += Math.Max(0, pending.RepeatCount - 1);
+        }
+
+        private void WriteRepeatedFrame(int index, FfmpegEncoder encoder, Func<bool> isCancelRequested)
+        {
+            if (lastFrameBytes == null)
+            {
+                throw new InvalidOperationException("Cannot repeat chart render frame " + index + " before a frame has been captured.");
+            }
+
+            byte[] buffer = RentFrameBuffer();
+            try
+            {
+                Buffer.BlockCopy(lastFrameBytes, 0, buffer, 0, frameByteLength);
+                encoder.WriteFrame(buffer, frameByteLength, 1, ReturnFrameBuffer, isCancelRequested);
+                buffer = null!;
+            }
+            finally
+            {
+                if (buffer != null)
+                {
+                    ReturnFrameBuffer(buffer);
+                }
+            }
+
+            WrittenFrames++;
+        }
+
+        private void EnsureLastFrameBuffer()
+        {
+            if (lastFrameBytes == null || lastFrameBytes.Length < frameByteLength)
+            {
+                lastFrameBytes = new byte[frameByteLength];
+            }
         }
 
         private byte[] RentFrameBuffer()
@@ -107,6 +172,31 @@ namespace ADOFAI.EditorTweaks.Features.ChartRendering
             lock (frameBufferPoolLock)
             {
                 frameBufferPool.Enqueue(buffer);
+            }
+        }
+
+        private sealed class QueuedFrameOutput
+        {
+            private QueuedFrameOutput(ChartFrameCapture.PendingFrame? pendingFrame, int index)
+            {
+                PendingFrame = pendingFrame;
+                Index = index;
+            }
+
+            public ChartFrameCapture.PendingFrame? PendingFrame { get; }
+
+            public int Index { get; }
+
+            public bool Done => PendingFrame == null || PendingFrame.Done;
+
+            public static QueuedFrameOutput Capture(ChartFrameCapture.PendingFrame pendingFrame)
+            {
+                return new QueuedFrameOutput(pendingFrame, pendingFrame.Index);
+            }
+
+            public static QueuedFrameOutput Repeat(int index)
+            {
+                return new QueuedFrameOutput(null, index);
             }
         }
     }
