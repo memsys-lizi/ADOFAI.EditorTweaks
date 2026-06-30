@@ -11,6 +11,11 @@
       "zh": "Editor Tweaks"
     },
     {
+      "key": "openReadme",
+      "en": "Open user manual",
+      "zh": "打开使用手册"
+    },
+    {
       "key": "decorationSection",
       "en": "Decoration",
       "zh": "装饰"

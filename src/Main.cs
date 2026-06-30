@@ -1,3 +1,4 @@
+using System.IO;
 using System.Reflection;
 using ADOFAI.EditorTweaks.Features.EditorOverlay;
 using HarmonyLib;
@@ -26,6 +27,13 @@ namespace ADOFAI.EditorTweaks
 
             Harmony = new Harmony(modEntry.Info.Id);
 
+            if (!Settings.HasShownReadme)
+            {
+                Settings.HasShownReadme = true;
+                Settings.Save(modEntry);
+                OpenReadme(modEntry);
+            }
+
             modEntry.Logger.Log("ADOFAI.EditorTweaks loaded.");
             return true;
         }
@@ -51,6 +59,19 @@ namespace ADOFAI.EditorTweaks
         public static void Log(string message)
         {
             Mod?.Logger.Log(message);
+        }
+
+        public static void OpenReadme(UnityModManager.ModEntry modEntry)
+        {
+            string readmePath = Path.Combine(modEntry.Path, "Resources", "README.html");
+            if (File.Exists(readmePath))
+            {
+                System.Diagnostics.Process.Start(readmePath);
+            }
+            else
+            {
+                modEntry.Logger.Log("README.html not found at: " + readmePath);
+            }
         }
     }
 }

@@ -101,6 +101,8 @@ namespace ADOFAI.EditorTweaks
 
         public string ChartRenderCustomMuxArgs = string.Empty;
 
+        public bool HasShownReadme = false;
+
         private static GUIStyle? panelStyle;
 
         private static GUIStyle? titleStyle;
@@ -178,6 +180,12 @@ namespace ADOFAI.EditorTweaks
             string oldExportDirectory = ChartRenderExportDirectory;
 
             GUILayout.BeginVertical(panelStyle);
+            if (GUILayout.Button(Text("openReadme"), GUILayout.Width(160)))
+            {
+                Main.OpenReadme(modEntry);
+            }
+
+            GUILayout.Space(4);
             GUILayout.Label(Text("title"), titleStyle);
             GUILayout.Space(4);
 
