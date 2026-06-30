@@ -132,8 +132,8 @@
     },
     {
       "key": "chartRenderResolutionPresetHint",
-      "en": "Quickly choose 1080p, 2K (1440p), or 4K. Manual width and height are still available below.",
-      "zh": "一键选择 1080p、2K（1440p）或 4K。下面仍然可以手动微调宽高。"
+      "en": "Quickly choose 1080p, 2K (1440p), 4K, vertical 9:16, or ultrawide 21:9. Manual width and height are still available below.",
+      "zh": "一键选择 1080p、2K（1440p）、4K、竖屏 9:16 或超宽屏 21:9。下面仍然可以手动微调宽高。"
     },
     {
       "key": "chartRenderHeight",

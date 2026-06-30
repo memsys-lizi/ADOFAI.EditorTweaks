@@ -565,6 +565,16 @@ namespace ADOFAI.EditorTweaks
                 ApplyChartRenderResolutionPreset(3840, 2160);
             }
 
+            if (GUILayout.Button("9:16", GUILayout.Width(82)))
+            {
+                ApplyChartRenderResolutionPreset(1080, 1920);
+            }
+
+            if (GUILayout.Button("21:9", GUILayout.Width(82)))
+            {
+                ApplyChartRenderResolutionPreset(2560, 1080);
+            }
+
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             GUILayout.Label(Text("chartRenderResolutionPresetHint"), hintStyle);
